@@ -15,18 +15,15 @@ Aplikasi manajemen dan dokumentasi pendampingan siswa berbasis 4 Pilar Pembinaan
 
 ---
 
-## 🔑 Akun Demo (Mock Credentials)
+## 🔑 Autentikasi & Keamanan (Supabase Backend)
 
-Semua data dummy telah dibersihkan sehingga siap untuk input data riil sekolah. Akun demo berikut tetap dipertahankan untuk kemudahan evaluasi dan pengujian sistem:
+Aplikasi ini menggunakan **Supabase Auth** dan **PostgreSQL Database** dengan enkripsi dan Row Level Security (RLS) aktif:
 
-| Peran | Email | Kata Sandi | Akses Dashboard |
-|---|---|---|---|
-| **Guru Wali (Kelas 8.1)** | `ahmad.fauzi@globalsmpmadani.sch.id` | `guru123` | `/dashboard` |
-| **Guru Wali (Kelas 7.1)** | `fatimah.zahra@globalsmpmadani.sch.id` | `guru123` | `/dashboard` |
-| **Admin Sekolah** | `admin@globalsmpmadani.sch.id` | `admin123` | `/admin` |
-| **Orang Tua / Wali** | `bambang.irawan@gmail.com` | `ortu123` | `/portal-orang-tua` |
+- Password dikelola dan di-hash langsung oleh Supabase Auth.
+- Kredensial akun resmi dibagikan secara terpisah oleh pihak sekolah / admin IT melalui saluran aman.
+- Tidak ada password atau kredensial sensitif yang disimpan di repositori.
 
-> Tersedia tombol **Quick Login** pada halaman masuk `/login` dan modal profil untuk beralih peran instan.
+Untuk membuat akun pengguna baru atau mengatur ulang kata sandi, admin dapat mengelolanya langsung melalui **Supabase Dashboard → Authentication → Users**.
 
 ---
 
