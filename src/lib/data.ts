@@ -1,11 +1,16 @@
 // ============================================================
-// Data Awal (Seed Data) - Aplikasi Pendampingan Guru Wali
+// Data Statis & Helper Functions - Aplikasi Pendampingan Guru Wali
 // SMP Global Madani - TA 2026/2027
+//
+// Catatan: Fungsi CRUD (students, sessions) telah dipindah ke
+// src/lib/db.ts yang menggunakan Supabase async functions.
+// File ini hanya berisi data statis dan helper functions.
 // ============================================================
 
 import { User, Student, MentoringArea, MentoringSession, ClassSummary } from './types';
 
-// --- PENGGUNA ---
+// --- PENGGUNA (sementara — akan dihapus setelah auth Supabase aktif) ---
+// Digunakan hanya untuk backward compat di portal-orang-tua dan layouts
 export const USERS: User[] = [
   {
     id: 'u1',
@@ -55,7 +60,7 @@ export const USERS: User[] = [
   },
 ];
 
-// --- SISWA (Kosong untuk produksi - data diinput oleh Guru Wali / Admin) ---
+// --- SISWA (kosong — data dikelola via Supabase database) ---
 export const STUDENTS: Student[] = [];
 
 // --- AREA PENDAMPINGAN (Standar 4 Pilar Buku Panduan SMP Global Madani) ---
@@ -161,142 +166,13 @@ export const MENTORING_AREAS: MentoringArea[] = [
   },
 ];
 
-// --- SESI PENDAMPINGAN (Kosong untuk produksi) ---
+// --- SESI (kosong — data dikelola via Supabase database) ---
 export const SESSIONS: MentoringSession[] = [];
 
-// --- REKAP KELAS ---
+// --- REKAP KELAS (kosong — dihitung dinamis dari Supabase) ---
 export const CLASS_SUMMARIES: ClassSummary[] = [];
 
-// --- LOCAL STORAGE PERSISTENCE HELPERS ---
-const STORAGE_SESSIONS_KEY = 'guru_wali_sessions_v2';
-const STORAGE_STUDENTS_KEY = 'guru_wali_students_v2';
-
-// --- STUDENT PERSISTENCE HELPERS ---
-
-/** Mengambil seluruh data siswa tersimpan (dari localStorage jika di browser) */
-export function getStoredStudents(): Student[] {
-  if (typeof window === 'undefined') return STUDENTS;
-  try {
-    const raw = localStorage.getItem(STORAGE_STUDENTS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return STUDENTS;
-}
-
-/** Menambahkan data siswa baru ke localStorage */
-export function addStoredStudent(student: Student): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const current = getStoredStudents();
-    const updated = [student, ...current];
-    localStorage.setItem(STORAGE_STUDENTS_KEY, JSON.stringify(updated));
-  } catch {
-    // ignore
-  }
-}
-
-/** Menghapus siswa dari localStorage berdasarkan id */
-export function removeStoredStudent(studentId: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const current = getStoredStudents();
-    const updated = current.filter(s => s.id !== studentId);
-    localStorage.setItem(STORAGE_STUDENTS_KEY, JSON.stringify(updated));
-  } catch {
-    // ignore
-  }
-}
-
-/** Mengambil sesi tersimpan (dari localStorage jika di browser) */
-export function getStoredSessions(): MentoringSession[] {
-  if (typeof window === 'undefined') return SESSIONS;
-  try {
-    const raw = localStorage.getItem(STORAGE_SESSIONS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {
-    // ignore
-  }
-  return SESSIONS;
-}
-
-/** Menambahkan sesi baru ke localStorage */
-export function addStoredSession(session: MentoringSession): void {
-  if (typeof window === 'undefined') {
-    SESSIONS.unshift(session);
-    return;
-  }
-  try {
-    const current = getStoredSessions();
-    const updated = [session, ...current];
-    localStorage.setItem(STORAGE_SESSIONS_KEY, JSON.stringify(updated));
-    SESSIONS.unshift(session);
-  } catch {
-    SESSIONS.unshift(session);
-  }
-}
-
-// --- HELPER FUNCTIONS ---
-
-export function getStudentsByGuruWali(guruWaliId: string): Student[] {
-  const students = getStoredStudents();
-  return students.filter(s => s.guru_wali_id === guruWaliId);
-}
-
-export function getSessionsByStudent(studentId: string): MentoringSession[] {
-  const sessions = getStoredSessions();
-  return sessions
-    .filter(s => s.siswa_id === studentId)
-    .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
-}
-
-export function getSessionsByStudentId(studentId: string): MentoringSession[] {
-  return getSessionsByStudent(studentId);
-}
-
-/** Menghitung rekapitulasi capaian tiap rombel secara dinamis dari data tersimpan */
-export function getClassSummaries(): ClassSummary[] {
-  const students = getStoredStudents();
-  const sessions = getStoredSessions();
-  const teachers = USERS.filter(u => u.role === 'guru_wali' && u.kelas);
-
-  return teachers.map(t => {
-    const classStudents = students.filter(
-      s => s.guru_wali_id === t.id || s.kelas === t.kelas
-    );
-    const studentIds = new Set(classStudents.map(s => s.id));
-    const classSessions = sessions.filter(
-      s => studentIds.has(s.siswa_id) || s.dicatat_oleh === t.id
-    );
-    const coveredStudentIds = new Set(classSessions.map(s => s.siswa_id));
-    const totalSiswa = classStudents.length;
-    const siswaTerjangkau = totalSiswa > 0
-      ? classStudents.filter(s => coveredStudentIds.has(s.id)).length
-      : 0;
-    const pct = totalSiswa > 0 ? (siswaTerjangkau / totalSiswa) * 100 : 0;
-
-    let status: 'tuntas' | 'berjalan' | 'perlu_perhatian' = 'berjalan';
-    if (totalSiswa > 0 && pct === 100) status = 'tuntas';
-    else if (totalSiswa > 0 && pct < 50) status = 'perlu_perhatian';
-
-    return {
-      kelas: t.kelas || '',
-      guru_wali_id: t.id,
-      guru_wali_nama: t.nama,
-      total_siswa: totalSiswa,
-      siswa_terjangkau: siswaTerjangkau,
-      total_sesi: classSessions.length,
-      status,
-    };
-  });
-}
+// --- HELPER FUNCTIONS (tidak butuh database) ---
 
 export function getMentoringArea(areaId: string): MentoringArea | undefined {
   return MENTORING_AREAS.find(a => a.id === areaId);
@@ -355,3 +231,42 @@ export function getInitials(nama: string): string {
     .toUpperCase() || 'SW';
 }
 
+/**
+ * Hitung rekap kelas secara dinamis dari data yang sudah dimuat
+ * (dipakai di admin dashboard setelah data diambil dari Supabase)
+ */
+export function computeClassSummaries(
+  students: import('./types').Student[],
+  sessions: MentoringSession[],
+  teachers: User[]
+): ClassSummary[] {
+  return teachers.map(t => {
+    const classStudents = students.filter(
+      s => s.guru_wali_id === t.id || s.kelas === t.kelas
+    );
+    const studentIds = new Set(classStudents.map(s => s.id));
+    const classSessions = sessions.filter(
+      s => studentIds.has(s.siswa_id) || s.dicatat_oleh === t.id
+    );
+    const coveredStudentIds = new Set(classSessions.map(s => s.siswa_id));
+    const totalSiswa = classStudents.length;
+    const siswaTerjangkau = totalSiswa > 0
+      ? classStudents.filter(s => coveredStudentIds.has(s.id)).length
+      : 0;
+    const pct = totalSiswa > 0 ? (siswaTerjangkau / totalSiswa) * 100 : 0;
+
+    let status: 'tuntas' | 'berjalan' | 'perlu_perhatian' = 'berjalan';
+    if (totalSiswa > 0 && pct === 100) status = 'tuntas';
+    else if (totalSiswa > 0 && pct < 50) status = 'perlu_perhatian';
+
+    return {
+      kelas: t.kelas || '',
+      guru_wali_id: t.id,
+      guru_wali_nama: t.nama,
+      total_siswa: totalSiswa,
+      siswa_terjangkau: siswaTerjangkau,
+      total_sesi: classSessions.length,
+      status,
+    };
+  });
+}
