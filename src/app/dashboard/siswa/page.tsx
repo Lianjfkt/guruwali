@@ -5,14 +5,17 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { GuruWaliLayout } from '@/components/layouts';
-import { getStoredStudents, getSessionsByStudentId, getInitials, formatDateShort } from '@/lib/data';
-import { Student } from '@/lib/types';
+import { getInitials, formatDateShort } from '@/lib/data';
+import { getStudentsByGuruWali, getSessionsByGuruWali } from '@/lib/db';
+import { Student, MentoringSession } from '@/lib/types';
 
 export default function SiswaPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
   const [students, setStudents] = useState<Student[]>([]);
+  const [sessions, setSessions] = useState<MentoringSession[]>([]);
+  const [isDbLoading, setIsDbLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'semua' | 'perlu_perhatian' | 'aktif' | 'stabil'>('semua');
 
@@ -25,13 +28,29 @@ export default function SiswaPage() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    setStudents(getStoredStudents());
-  }, []);
+    if (!user || user.role !== 'guru_wali') return;
+    const loadData = async () => {
+      try {
+        setIsDbLoading(true);
+        const [studs, sess] = await Promise.all([
+          getStudentsByGuruWali(user.id),
+          getSessionsByGuruWali(user.id),
+        ]);
+        setStudents(studs);
+        setSessions(sess);
+      } catch {
+        // ignore load error
+      } finally {
+        setIsDbLoading(false);
+      }
+    };
+    loadData();
+  }, [user]);
 
   // Siswa yang diampu guru wali yang login (atau kelas guru wali)
   const myStudents = useMemo(() => {
-    const guruId = user?.id || 'u1';
-    return students.filter(s => s.guru_wali_id === guruId || s.kelas === (user?.kelas || '8.1'));
+    if (!user) return [];
+    return students.filter(s => s.guru_wali_id === user.id || s.kelas === user.kelas);
   }, [user, students]);
 
   const filteredStudents = useMemo(() => {
@@ -195,8 +214,8 @@ export default function SiswaPage() {
             </div>
           ) : (
             filteredStudents.map(student => {
-              const sessions = getSessionsByStudentId(student.id);
-              const lastSession = sessions[0];
+              const studentSessions = sessions.filter(s => s.siswa_id === student.id);
+              const lastSession = studentSessions[0];
               const initials = getInitials(student.nama);
 
               return (
@@ -234,7 +253,7 @@ export default function SiswaPage() {
                   <div className="bg-[#f7f9fb] rounded-xl p-3 flex items-center justify-between text-xs text-[#45464d]">
                     <div className="flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-[16px] text-[#0051d5]">history_edu</span>
-                      <span>Total: <strong className="text-[#191c1e]">{sessions.length} Sesi</strong></span>
+                      <span>Total: <strong className="text-[#191c1e]">{studentSessions.length} Sesi</strong></span>
                     </div>
                     {lastSession ? (
                       <span className="truncate">

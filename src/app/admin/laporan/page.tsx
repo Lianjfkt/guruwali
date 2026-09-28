@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { AdminLayout } from '@/components/layouts';
-import { getClassSummaries } from '@/lib/data';
+import { getClassSummaries } from '@/lib/db';
 import { ClassSummary } from '@/lib/types';
 
 export default function AdminLaporanPage() {
@@ -13,7 +13,7 @@ export default function AdminLaporanPage() {
   const [summaries, setSummaries] = useState<ClassSummary[]>([]);
 
   useEffect(() => {
-    setSummaries(getClassSummaries());
+    getClassSummaries().then(setSummaries).catch(() => {});
   }, []);
 
   if (!user) return null;

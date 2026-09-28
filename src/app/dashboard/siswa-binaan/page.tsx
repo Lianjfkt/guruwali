@@ -5,12 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { GuruWaliLayout } from '@/components/layouts';
-import {
-  getStoredStudents,
-  addStoredStudent,
-  removeStoredStudent,
-  getInitials,
-} from '@/lib/data';
+import { getInitials } from '@/lib/data';
+import { getStudentsByGuruWali, addStudent, deleteStudent } from '@/lib/db';
 import { Student } from '@/lib/types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -35,6 +31,8 @@ export default function SiswaBinaanPage() {
   const router = useRouter();
 
   const [students, setStudents] = useState<Student[]>([]);
+  const [isDbLoading, setIsDbLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState('');
@@ -42,10 +40,17 @@ export default function SiswaBinaanPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const reload = useCallback(() => {
+  const reload = useCallback(async () => {
     if (!user) return;
-    const all = getStoredStudents();
-    setStudents(all.filter(s => s.guru_wali_id === user.id || (user.kelas && s.kelas === user.kelas)));
+    try {
+      setIsDbLoading(true);
+      const data = await getStudentsByGuruWali(user.id);
+      setStudents(data);
+    } catch {
+      // ignore reload error
+    } finally {
+      setIsDbLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -54,7 +59,7 @@ export default function SiswaBinaanPage() {
     reload();
   }, [user, isLoading, router, reload]);
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -68,35 +73,43 @@ export default function SiswaBinaanPage() {
     }
 
     // Check duplicate NISGM
-    const all = getStoredStudents();
-    if (all.some(s => s.nisn === form.nisn.trim())) {
+    if (students.some(s => s.nisn === form.nisn.trim())) {
       setFormError('NISGM sudah terdaftar dalam sistem.');
       return;
     }
 
-    const newStudent: Student = {
-      id: `s-custom-${Date.now()}`,
-      nama: form.nama.trim(),
-      nisn: form.nisn.trim(),
-      kelas: user?.kelas || '',
-      guru_wali_id: user?.id || '',
-      status_pendampingan: form.status_pendampingan,
-    };
+    try {
+      setIsSubmitting(true);
+      const newStudent = await addStudent({
+        nama: form.nama.trim(),
+        nisn: form.nisn.trim(),
+        kelas: user?.kelas || '',
+        guru_wali_id: user?.id || '',
+        status_pendampingan: form.status_pendampingan,
+      });
 
-    addStoredStudent(newStudent);
-    setShowAddModal(false);
-    setForm(EMPTY_FORM);
-    reload();
-    setSuccessMsg(`Siswa "${newStudent.nama}" berhasil ditambahkan ke daftar binaan.`);
-    setTimeout(() => setSuccessMsg(''), 4000);
+      setShowAddModal(false);
+      setForm(EMPTY_FORM);
+      await reload();
+      setSuccessMsg(`Siswa "${newStudent.nama}" berhasil ditambahkan ke database.`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      setFormError(err.message || 'Gagal menyimpan data siswa.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDelete = (studentId: string) => {
-    removeStoredStudent(studentId);
-    setDeleteConfirmId(null);
-    reload();
-    setSuccessMsg('Siswa berhasil dihapus dari daftar binaan tambahan.');
-    setTimeout(() => setSuccessMsg(''), 4000);
+  const handleDelete = async (studentId: string) => {
+    try {
+      await deleteStudent(studentId);
+      setDeleteConfirmId(null);
+      await reload();
+      setSuccessMsg('Siswa berhasil dihapus dari database.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus siswa.');
+    }
   };
 
   const filtered = students.filter(s =>

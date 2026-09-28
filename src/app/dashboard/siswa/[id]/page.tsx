@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { getStoredStudents, getSessionsByStudentId, USERS, getMentoringArea, formatDate, formatDateShort, getInitials } from '@/lib/data';
+import { USERS, getMentoringArea, formatDate, formatDateShort, getInitials } from '@/lib/data';
+import { getStudentsByGuruWali, getAllStudents, getSessionsByStudent } from '@/lib/db';
 import { MentoringAreaId, MentoringSession, Student } from '@/lib/types';
 
 export default function StudentDetailPage({
@@ -19,12 +20,30 @@ export default function StudentDetailPage({
   const router = useRouter();
 
   const [students, setStudents] = useState<Student[]>([]);
+  const [studentSessions, setStudentSessions] = useState<MentoringSession[]>([]);
+  const [isDbLoading, setIsDbLoading] = useState(true);
   const [activeAreaFilter, setActiveAreaFilter] = useState<'semua' | MentoringAreaId>('semua');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setStudents(getStoredStudents());
-  }, []);
+    if (!user) return;
+    const loadData = async () => {
+      try {
+        setIsDbLoading(true);
+        const [studs, sess] = await Promise.all([
+          user.role === 'guru_wali' ? getStudentsByGuruWali(user.id) : getAllStudents(),
+          getSessionsByStudent(studentId),
+        ]);
+        setStudents(studs);
+        setStudentSessions(sess);
+      } catch {
+        // ignore error
+      } finally {
+        setIsDbLoading(false);
+      }
+    };
+    loadData();
+  }, [user, studentId]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -45,13 +64,9 @@ export default function StudentDetailPage({
     return USERS.find(u => u.id === student.orang_tua_id);
   }, [student]);
 
-  const studentSessions = useMemo(() => {
-    return getSessionsByStudentId(studentId);
-  }, [studentId]);
-
   const filteredSessions = useMemo(() => {
     if (activeAreaFilter === 'semua') return studentSessions;
-    return studentSessions.filter(s => s.area_id === activeAreaFilter);
+    return studentSessions.filter((s: MentoringSession) => s.area_id === activeAreaFilter);
   }, [studentSessions, activeAreaFilter]);
 
   // Hitung jumlah per area
@@ -62,15 +77,23 @@ export default function StudentDetailPage({
       kompetensi: 0,
       kolaborasi: 0,
     };
-    studentSessions.forEach(s => {
+    studentSessions.forEach((s: MentoringSession) => {
       c[s.area_id] = (c[s.area_id] || 0) + 1;
     });
     return c;
   }, [studentSessions]);
 
   const pendingFollowUps = useMemo(() => {
-    return studentSessions.filter(s => s.target_evaluasi && new Date(s.target_evaluasi) >= new Date()).length;
+    return studentSessions.filter((s: MentoringSession) => s.target_evaluasi && new Date(s.target_evaluasi) >= new Date()).length;
   }, [studentSessions]);
+
+  if (isDbLoading) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fb] p-6 flex flex-col items-center justify-center">
+        <div className="w-8 h-8 border-3 border-[#0051d5] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!student) {
     return (

@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { GuruWaliLayout } from '@/components/layouts';
 import {
-  getStoredStudents, getStoredSessions, MENTORING_AREAS,
+  MENTORING_AREAS,
   getAreaDistribution, getRelativeTime, formatDateShort, getInitials
 } from '@/lib/data';
+import { getStudentsByGuruWali, getSessionsByGuruWali } from '@/lib/db';
 import { Student, MentoringSession } from '@/lib/types';
 import Link from 'next/link';
 
@@ -16,15 +17,32 @@ export default function DashboardPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<MentoringSession[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [isDbLoading, setIsDbLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) { router.replace('/login'); return; }
     if (user.role !== 'guru_wali') { router.replace('/admin'); return; }
-    setSessions(getStoredSessions());
-    setStudents(getStoredStudents());
+
+    const loadData = async () => {
+      try {
+        setIsDbLoading(true);
+        const [studs, sess] = await Promise.all([
+          getStudentsByGuruWali(user.id),
+          getSessionsByGuruWali(user.id),
+        ]);
+        setStudents(studs);
+        setSessions(sess);
+      } catch {
+        setDbError('Gagal memuat data pendampingan dari database.');
+      } finally {
+        setIsDbLoading(false);
+      }
+    };
+    loadData();
   }, [user, router]);
 
-  if (!user || user.role !== 'guru_wali') {
+  if (!user || user.role !== 'guru_wali' || isDbLoading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#0051d5] border-t-transparent rounded-full animate-spin" /></div>;
   }
 

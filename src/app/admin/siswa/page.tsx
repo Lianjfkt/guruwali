@@ -4,15 +4,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { AdminLayout } from '@/components/layouts';
-import {
-  getStoredStudents,
-  addStoredStudent,
-  removeStoredStudent,
-  USERS,
-  getInitials,
-  getSessionsByStudent,
-} from '@/lib/data';
-import { Student } from '@/lib/types';
+import { getInitials } from '@/lib/data';
+import { getAllStudents, getAllSessions, getAllGuruWali, addStudent, deleteStudent } from '@/lib/db';
+import { Student, MentoringSession, User } from '@/lib/types';
 
 const KELAS_OPTIONS = [
   '7.1', '7.2', '7.3', '7.4',
@@ -23,6 +17,10 @@ const KELAS_OPTIONS = [
 export default function AdminSiswaPage() {
   const { user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
+  const [sessions, setSessions] = useState<MentoringSession[]>([]);
+  const [guruWaliList, setGuruWaliList] = useState<User[]>([]);
+  const [isDbLoading, setIsDbLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -34,20 +32,33 @@ export default function AdminSiswaPage() {
   const [formNama, setFormNama] = useState('');
   const [formNisgm, setFormNisgm] = useState('');
   const [formKelas, setFormKelas] = useState('8.1');
-  const [formGuruId, setFormGuruId] = useState('u1');
+  const [formGuruId, setFormGuruId] = useState('');
   const [formStatus, setFormStatus] = useState<Student['status_pendampingan']>('stabil');
 
-  const reloadStudents = useCallback(() => {
-    setStudents(getStoredStudents());
-  }, []);
+  const reloadStudents = useCallback(async () => {
+    try {
+      setIsDbLoading(true);
+      const [studs, sess, gurus] = await Promise.all([
+        getAllStudents(),
+        getAllSessions(),
+        getAllGuruWali(),
+      ]);
+      setStudents(studs);
+      setSessions(sess);
+      setGuruWaliList(gurus);
+      if (gurus.length > 0 && !formGuruId) {
+        setFormGuruId(gurus[0].id);
+      }
+    } catch {
+      // ignore reload error
+    } finally {
+      setIsDbLoading(false);
+    }
+  }, [formGuruId]);
 
   useEffect(() => {
     reloadStudents();
   }, [reloadStudents]);
-
-  const guruWaliList = useMemo(() => {
-    return USERS.filter(u => u.role === 'guru_wali');
-  }, []);
 
   const filtered = useMemo(() => {
     return students.filter(s => {
@@ -62,7 +73,7 @@ export default function AdminSiswaPage() {
     });
   }, [students, search, classFilter, statusFilter]);
 
-  const handleAddStudent = (e: React.FormEvent) => {
+  const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -80,30 +91,39 @@ export default function AdminSiswaPage() {
       return;
     }
 
-    const newStudent: Student = {
-      id: `s-${Date.now()}`,
-      nama: formNama.trim(),
-      nisn: formNisgm.trim(),
-      kelas: formKelas,
-      guru_wali_id: formGuruId,
-      status_pendampingan: formStatus,
-    };
+    try {
+      setIsSubmitting(true);
+      const newStudent = await addStudent({
+        nama: formNama.trim(),
+        nisn: formNisgm.trim(),
+        kelas: formKelas,
+        guru_wali_id: formGuruId || (guruWaliList[0]?.id ?? ''),
+        status_pendampingan: formStatus,
+      });
 
-    addStoredStudent(newStudent);
-    setShowAddModal(false);
-    setFormNama('');
-    setFormNisgm('');
-    reloadStudents();
-    setSuccessMsg(`Siswa "${newStudent.nama}" berhasil ditambahkan.`);
-    setTimeout(() => setSuccessMsg(''), 3500);
+      setShowAddModal(false);
+      setFormNama('');
+      setFormNisgm('');
+      await reloadStudents();
+      setSuccessMsg(`Siswa "${newStudent.nama}" berhasil ditambahkan.`);
+      setTimeout(() => setSuccessMsg(''), 3500);
+    } catch (err: any) {
+      setFormError(err.message || 'Gagal menambahkan data siswa.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDeleteStudent = (id: string, nama: string) => {
+  const handleDeleteStudent = async (id: string, nama: string) => {
     if (confirm(`Yakin ingin menghapus siswa "${nama}"?`)) {
-      removeStoredStudent(id);
-      reloadStudents();
-      setSuccessMsg(`Data siswa "${nama}" berhasil dihapus.`);
-      setTimeout(() => setSuccessMsg(''), 3500);
+      try {
+        await deleteStudent(id);
+        await reloadStudents();
+        setSuccessMsg(`Data siswa "${nama}" berhasil dihapus.`);
+        setTimeout(() => setSuccessMsg(''), 3500);
+      } catch (err: any) {
+        alert(err.message || 'Gagal menghapus siswa.');
+      }
     }
   };
 
@@ -222,8 +242,8 @@ export default function AdminSiswaPage() {
             </div>
           ) : (
             filtered.map(student => {
-              const sessions = getSessionsByStudent(student.id);
-              const guru = USERS.find(u => u.id === student.guru_wali_id);
+              const studentSessions = sessions.filter(s => s.siswa_id === student.id);
+              const guru = guruWaliList.find(u => u.id === student.guru_wali_id);
               const initials = getInitials(student.nama);
 
               return (
@@ -265,7 +285,7 @@ export default function AdminSiswaPage() {
 
                   <div className="bg-[#f7f9fb] rounded-xl p-2.5 text-xs text-[#45464d] flex items-center justify-between">
                     <span>Guru Wali: <strong>{guru?.nama || 'Belum Ditugaskan'}</strong></span>
-                    <span className="text-[#0051d5] font-semibold">{sessions.length} Sesi Tercatat</span>
+                    <span className="text-[#0051d5] font-semibold">{studentSessions.length} Sesi Tercatat</span>
                   </div>
 
                   <div className="flex justify-end pt-1">

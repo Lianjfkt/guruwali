@@ -7,11 +7,10 @@ import { useAuth } from '@/lib/auth-context';
 import { GuruWaliLayout } from '@/components/layouts';
 import {
   MENTORING_AREAS,
-  addStoredSession,
-  getStoredStudents,
   getMentoringArea,
   getInitials,
 } from '@/lib/data';
+import { getStudentsByGuruWali, addSession } from '@/lib/db';
 import { MentoringAreaId, Student } from '@/lib/types';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -35,15 +34,22 @@ function CatatSesiContent() {
   const [targetEvaluasi, setTargetEvaluasi] = useState<string>('');
   const [showStudentPicker, setShowStudentPicker] = useState<boolean>(false);
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string>('');
   const [allStudents, setAllStudents] = useState<Student[]>([]);
 
-  // ── Load students from localStorage ─────────────────────────────────────
+  // ── Load students from database ─────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-    const stored = getStoredStudents();
-    const mine = stored.filter(s => s.guru_wali_id === user.id || (user.kelas && s.kelas === user.kelas));
-    setAllStudents(mine);
+    const load = async () => {
+      try {
+        const mine = await getStudentsByGuruWali(user.id);
+        setAllStudents(mine);
+      } catch {
+        // ignore load error
+      }
+    };
+    load();
   }, [user]);
 
   // ── Preset date helper ───────────────────────────────────────────────────
@@ -111,10 +117,14 @@ function CatatSesiContent() {
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
+    if (!user) {
+      setFormError('Sesi login telah berakhir. Silakan muat ulang halaman.');
+      return;
+    }
     if (selectedStudentIds.length === 0) {
       setFormError('Pilih minimal satu siswa untuk sesi ini.');
       return;
@@ -128,27 +138,30 @@ function CatatSesiContent() {
       return;
     }
 
-    // Create one session record per selected student
-    const timestamp = Date.now();
-    selectedStudentIds.forEach((siswaId, idx) => {
-      const newSession = {
-        id: `sess-${timestamp}-${idx}`,
-        siswa_id: siswaId,
-        dicatat_oleh: user?.id || 'u1',
-        dicatat_oleh_nama: user?.nama || 'Mr. Ahmad Fauzi, S.Pd.',
-        tanggal,
-        area_id: selectedArea,
-        kegiatan: selectedKegiatan.length > 0 ? selectedKegiatan : ['Pendampingan berkala'],
-        kegiatan_tambahan: kegiatanTambahan || undefined,
-        temuan: temuan.trim(),
-        tindak_lanjut: selectedTindakLanjut,
-        target_evaluasi: targetEvaluasi || undefined,
-        dibuat_pada: new Date().toISOString(),
-      };
-      addStoredSession(newSession);
-    });
-
-    setShowSuccessModal(true);
+    try {
+      setIsSubmitting(true);
+      await Promise.all(
+        selectedStudentIds.map(siswaId =>
+          addSession({
+            siswa_id: siswaId,
+            dicatat_oleh: user.id,
+            dicatat_oleh_nama: user.nama,
+            tanggal,
+            area_id: selectedArea,
+            kegiatan: selectedKegiatan.length > 0 ? selectedKegiatan : ['Pendampingan berkala'],
+            kegiatan_tambahan: kegiatanTambahan || undefined,
+            temuan: temuan.trim(),
+            tindak_lanjut: selectedTindakLanjut,
+            target_evaluasi: targetEvaluasi || undefined,
+          })
+        )
+      );
+      setShowSuccessModal(true);
+    } catch (err: any) {
+      setFormError(err.message || 'Gagal menyimpan sesi pendampingan ke database.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading || !user) {

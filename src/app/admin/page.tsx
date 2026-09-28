@@ -5,13 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { AdminLayout } from '@/components/layouts';
-import {
-  getClassSummaries,
-  getStoredStudents,
-  getStoredSessions,
-  getAreaDistribution,
-} from '@/lib/data';
-import { ClassSummary, Student, MentoringSession } from '@/lib/types';
+import * as XLSX from 'xlsx';
+import { getAreaDistribution } from '@/lib/data';
+import { getAllStudents, getAllSessions, getAllGuruWali, getClassSummaries } from '@/lib/db';
+import { ClassSummary, Student, MentoringSession, User } from '@/lib/types';
 
 export default function AdminDashboardPage() {
   const { user, isLoading } = useAuth();
@@ -22,6 +19,8 @@ export default function AdminDashboardPage() {
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [sessions, setSessions] = useState<MentoringSession[]>([]);
+  const [teachers, setTeachers] = useState<User[]>([]);
+  const [isDbLoading, setIsDbLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'admin')) {
@@ -32,10 +31,32 @@ export default function AdminDashboardPage() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    setClasses(getClassSummaries());
-    setStudents(getStoredStudents());
-    setSessions(getStoredSessions());
-  }, []);
+    if (!user || user.role !== 'admin') return;
+    const load = async () => {
+      try {
+        setIsDbLoading(true);
+        const [cls, studs, sess, tchs] = await Promise.all([
+          getClassSummaries(),
+          getAllStudents(),
+          getAllSessions(),
+          getAllGuruWali(),
+        ]);
+        setClasses(cls);
+        setStudents(studs);
+        setSessions(sess);
+        setTeachers(tchs);
+      } catch {
+        // ignore load error
+      } finally {
+        setIsDbLoading(false);
+      }
+    };
+    load();
+  }, [user]);
+
+  const currentYear = new Date().getFullYear();
+  const semesterLabel = `Semester Ganjil ${currentYear}/${currentYear + 1}`;
+  const currentMonth = new Date().toLocaleDateString('id-ID', { month: 'long' });
 
   const filteredClasses = useMemo(() => {
     if (selectedLevel === 'all') return classes;
@@ -48,8 +69,12 @@ export default function AdminDashboardPage() {
     const totalSesi = filteredClasses.reduce((acc, c) => acc + c.total_sesi, 0);
     const totalGuru = filteredClasses.length;
     const coveragePct = totalSiswa > 0 ? Math.round((totalTerjangkau / totalSiswa) * 100) : 0;
-    return { totalSiswa, totalTerjangkau, totalSesi, totalGuru, coveragePct };
-  }, [filteredClasses]);
+
+    const activeGuruCount = teachers.filter(t => sessions.some(s => s.dicatat_oleh === t.id)).length;
+    const teacherCompliancePct = teachers.length > 0 ? Math.round((activeGuruCount / teachers.length) * 100) : 0;
+
+    return { totalSiswa, totalTerjangkau, totalSesi, totalGuru, coveragePct, activeGuruCount, teacherCompliancePct };
+  }, [filteredClasses, teachers, sessions]);
 
   const urgentStudents = useMemo(() => {
     return students.filter(s => s.status_pendampingan === 'perlu_perhatian');
@@ -58,6 +83,33 @@ export default function AdminDashboardPage() {
   const areaDist = useMemo(() => {
     return getAreaDistribution(sessions);
   }, [sessions]);
+
+  const handleExportXLSX = () => {
+    try {
+      const rows = sessions.map(s => {
+        const siswa = students.find(st => st.id === s.siswa_id);
+        return {
+          'Tanggal': s.tanggal,
+          'Nama Siswa': siswa?.nama || '-',
+          'Kelas': siswa?.kelas || '-',
+          'NISGM': siswa?.nisn || '-',
+          'Area Pendampingan': s.area_id.toUpperCase(),
+          'Dicatat Oleh': s.dicatat_oleh_nama,
+          'Temuan & Observasi': s.temuan,
+          'Kegiatan': s.kegiatan.join('; ') + (s.kegiatan_tambahan ? ` (${s.kegiatan_tambahan})` : ''),
+          'Rencana Tindak Lanjut': s.tindak_lanjut.join('; '),
+          'Target Evaluasi': s.target_evaluasi || '-',
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Jurnal Pendampingan');
+      XLSX.writeFile(wb, `jurnal-pendampingan-${new Date().toISOString().split('T')[0]}.xlsx`);
+      setShowExportModal(false);
+    } catch {
+      alert('Gagal mengekspor berkas Excel. Silakan coba lagi.');
+    }
+  };
 
   if (isLoading || !user) {
     return (
@@ -77,12 +129,12 @@ export default function AdminDashboardPage() {
               calendar_today
             </span>
             <span className="text-xs font-semibold text-[#191c1e] truncate">
-              Semester Ganjil 2024/2025
+              {semesterLabel}
             </span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <span className="w-2 h-2 rounded-full bg-[#0c9488] animate-pulse" />
-            <span className="text-[11px] text-[#45464d] font-semibold">Bulan Berjalan (Okt)</span>
+            <span className="text-[11px] text-[#45464d] font-semibold">Bulan Berjalan ({currentMonth})</span>
           </div>
         </div>
 
@@ -236,9 +288,9 @@ export default function AdminDashboardPage() {
               <div className="mt-2">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-xl font-bold text-[#191c1e]">{stats.totalSesi}</span>
-                  <span className="text-[11px] text-[#0c9488] font-bold">+18%</span>
+                  <span className="text-[11px] text-[#0051d5] font-semibold">Tercatat</span>
                 </div>
-                <div className="text-[10px] text-[#45464d] mt-0.5">vs bulan lalu</div>
+                <div className="text-[10px] text-[#45464d] mt-0.5">Total interaksi bimbingan</div>
               </div>
             </div>
 
@@ -251,8 +303,8 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
               <div className="mt-2">
-                <div className="text-xl font-bold text-[#191c1e]">{stats.totalGuru} / {stats.totalGuru} Guru</div>
-                <div className="text-[10px] text-[#0c9488] font-bold mt-0.5">100% Aktif Mengisi</div>
+                <div className="text-xl font-bold text-[#191c1e]">{stats.activeGuruCount} / {teachers.length || stats.totalGuru} Guru</div>
+                <div className="text-[10px] text-[#0c9488] font-bold mt-0.5">{stats.teacherCompliancePct}% Aktif Mengisi</div>
               </div>
             </div>
 
@@ -495,10 +547,7 @@ export default function AdminDashboardPage() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    alert('Laporan spreadsheet XLSX berhasil diunduh (simulasi).');
-                    setShowExportModal(false);
-                  }}
+                  onClick={handleExportXLSX}
                   className="w-full p-3 rounded-xl bg-[#f7f9fb] hover:bg-[#89f5e7]/30 border border-slate-200 flex items-center gap-3 transition-colors text-left"
                 >
                   <span className="material-symbols-outlined text-[#0c9488] text-[24px]">table_view</span>

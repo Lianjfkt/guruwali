@@ -3,13 +3,17 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { getStoredStudents, getSessionsByStudentId, USERS, formatDate, formatDateShort, getInitials } from '@/lib/data';
-import { MentoringAreaId, Student } from '@/lib/types';
+import { formatDate, formatDateShort, getInitials } from '@/lib/data';
+import { getAllStudents, getSessionsByStudent, getAllUsers } from '@/lib/db';
+import { MentoringAreaId, Student, MentoringSession, User } from '@/lib/types';
 
 export default function PortalOrangTuaPage() {
   const { user, logout, isLoading } = useAuth();
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
+  const [sessions, setSessions] = useState<MentoringSession[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isDbLoading, setIsDbLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [parentNote, setParentNote] = useState('');
@@ -22,12 +26,35 @@ export default function PortalOrangTuaPage() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    setStudents(getStoredStudents());
-  }, []);
+    if (!user) return;
+    const load = async () => {
+      try {
+        setIsDbLoading(true);
+        const [studs, allU] = await Promise.all([
+          getAllStudents(),
+          getAllUsers(),
+        ]);
+        setStudents(studs);
+        setUsers(allU);
+
+        const myChild = studs.find(s => s.orang_tua_id === user.id) || studs[0];
+        if (myChild) {
+          const sess = await getSessionsByStudent(myChild.id);
+          setSessions(sess);
+        }
+      } catch {
+        // ignore load error
+      } finally {
+        setIsDbLoading(false);
+      }
+    };
+    load();
+  }, [user]);
 
   // Siswa binaan untuk orang tua
   const child = useMemo(() => {
-    if (user?.role === 'orang_tua') {
+    if (!user) return null;
+    if (user.role === 'orang_tua') {
       return students.find(s => s.orang_tua_id === user.id) || students[0] || null;
     }
     return students[0] || null;
@@ -35,20 +62,17 @@ export default function PortalOrangTuaPage() {
 
   const guruWali = useMemo(() => {
     if (!child) return null;
-    return USERS.find(u => u.id === child.guru_wali_id);
-  }, [child]);
+    return users.find(u => u.id === child.guru_wali_id);
+  }, [child, users]);
 
-  const childSessions = useMemo(() => {
-    if (!child) return [];
-    return getSessionsByStudentId(child.id);
-  }, [child]);
+  const childSessions: MentoringSession[] = sessions;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  if (isLoading || !user) {
+  if (isLoading || isDbLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
         <div className="w-8 h-8 border-3 border-[#0051d5] border-t-transparent rounded-full animate-spin" />
