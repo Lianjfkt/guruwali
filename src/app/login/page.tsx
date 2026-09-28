@@ -3,12 +3,8 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, getDashboardPath } from '@/lib/auth-context';
-
-const DEMO_ACCOUNTS = [
-  { label: 'Guru Wali', email: 'ahmad.fauzi@globalsmpmadani.sch.id', password: 'guru123', icon: 'school' },
-  { label: 'Admin Sekolah', email: 'admin@globalsmpmadani.sch.id', password: 'admin123', icon: 'admin_panel_settings' },
-  { label: 'Orang Tua', email: 'bambang.irawan@gmail.com', password: 'ortu123', icon: 'family_restroom' },
-];
+import { supabase } from '@/lib/supabase';
+import { getUserById } from '@/lib/db';
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
@@ -21,20 +17,24 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = await login(email, password);
+    const success = await login(email.trim(), password);
     if (success) {
-      const { USERS } = await import('@/lib/data');
-      const user = USERS.find(u => u.email === email);
-      if (user) router.replace(getDashboardPath(user.role));
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const profile = await getUserById(session.user.id);
+          if (profile) {
+            router.replace(getDashboardPath(profile.role));
+            return;
+          }
+        }
+      } catch {
+        // fallback
+      }
+      router.replace('/dashboard');
     } else {
-      setError('Email atau kata sandi tidak valid. Coba akun demo di bawah.');
+      setError('Email atau kata sandi tidak valid. Hubungi pihak sekolah jika kendala berlanjut.');
     }
-  };
-
-  const fillDemo = (acc: typeof DEMO_ACCOUNTS[0]) => {
-    setEmail(acc.email);
-    setPassword(acc.password);
-    setError('');
   };
 
   return (
@@ -74,7 +74,7 @@ export default function LoginPage() {
             {/* Email */}
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-[#45464d]" htmlFor="email">
-                Email Institusi
+                Email Institusi / Terdaftar
               </label>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#76777d] text-[18px]">
@@ -153,26 +153,11 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Demo Accounts */}
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-[#45464d] text-center font-medium">
-            <span className="material-symbols-outlined text-[12px] align-middle mr-1">info</span>
-            Akun Demo — Klik untuk mengisi otomatis
+        {/* Info Box */}
+        <div className="bg-white/80 border border-[#e0e3e5] rounded-xl p-3 text-center">
+          <p className="text-xs text-[#45464d] leading-relaxed">
+            Belum memiliki akses atau lupa kata sandi? Silakan hubungi <strong>Admin Sekolah / Kesiswaan</strong>.
           </p>
-          <div className="grid grid-cols-3 gap-2">
-            {DEMO_ACCOUNTS.map(acc => (
-              <button
-                key={acc.email}
-                onClick={() => fillDemo(acc)}
-                className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-white border border-[#e0e3e5] hover:border-[#0051d5] hover:bg-[#f2f4f6] transition-all text-center active:scale-[0.97]"
-              >
-                <span className="material-symbols-outlined text-[#0051d5] text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  {acc.icon}
-                </span>
-                <span className="text-[10px] font-semibold text-[#45464d] leading-tight">{acc.label}</span>
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Footer */}

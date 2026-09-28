@@ -2,98 +2,93 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/lib/types';
-import { USERS } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
+import { getUserById } from '@/lib/db';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  switchUser: (userId: string) => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Mock credentials untuk demo
-const MOCK_CREDENTIALS: Record<string, string> = {
-  'ahmad.fauzi@globalsmpmadani.sch.id': 'guru123',
-  'fatimah.zahra@globalsmpmadani.sch.id': 'guru123',
-  'rizky.pratama@globalsmpmadani.sch.id': 'guru123',
-  'nurul.hidayah@globalsmpmadani.sch.id': 'guru123',
-  'admin@globalsmpmadani.sch.id': 'admin123',
-  'bambang.irawan@gmail.com': 'ortu123',
-};
-
-const STORAGE_KEY = 'guru_wali_session';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Restore session from localStorage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.id) {
-          // Cross-check against USERS or keep stored
-          const fresh = USERS.find(u => u.id === parsed.id) || parsed;
-          setUser(fresh);
+    let isMounted = true;
+
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && isMounted) {
+          const profile = await getUserById(session.user.id);
+          if (isMounted) setUser(profile);
+        }
+      } catch {
+        // ignore init errors
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          const profile = await getUserById(session.user.id);
+          if (isMounted) {
+            setUser(profile);
+            setIsLoading(false);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          if (isMounted) {
+            setUser(null);
+            setIsLoading(false);
+          }
         }
       }
-    } catch {
-      // In case of parsing error
-    } finally {
-      setIsLoading(false);
-    }
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 400));
-
-    const validPassword = MOCK_CREDENTIALS[email];
-    if (validPassword && validPassword === password) {
-      const foundUser = USERS.find(u => u.email === email);
-      if (foundUser) {
-        setUser(foundUser);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(foundUser));
-        } catch {
-          // ignore storage quota error
-        }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error || !data.user) {
         setIsLoading(false);
-        return true;
+        return false;
       }
+      const profile = await getUserById(data.user.id);
+      setUser(profile);
+      setIsLoading(false);
+      return true;
+    } catch {
+      setIsLoading(false);
+      return false;
     }
-    setIsLoading(false);
-    return false;
   };
 
-  const logout = () => {
-    setUser(null);
+  const logout = async () => {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      await supabase.auth.signOut();
     } catch {
       // ignore
     }
-  };
-
-  const switchUser = (userId: string) => {
-    const target = USERS.find(u => u.id === userId);
-    if (target) {
-      setUser(target);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(target));
-      } catch {
-        // ignore
-      }
-    }
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, switchUser, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

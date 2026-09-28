@@ -4,7 +4,6 @@ import { ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, getDashboardPath } from '@/lib/auth-context';
-import { USERS } from '@/lib/data';
 
 interface NavItem {
   path: string;
@@ -55,7 +54,6 @@ const NOTIFICATIONS = [
   },
 ];
 
-// ===================== USER MENU MODAL =====================
 function UserProfileModal({
   isOpen,
   onClose,
@@ -65,17 +63,10 @@ function UserProfileModal({
   onClose: () => void;
   currentUser: { nama: string; email?: string; kelas?: string; role?: string };
 }) {
-  const { logout, switchUser } = useAuth();
+  const { logout } = useAuth();
   const router = useRouter();
 
   if (!isOpen) return null;
-
-  const demoAccounts = [
-    { id: 'u1', label: 'Mr. Ahmad Fauzi', sub: 'Guru Wali 8.1', role: 'guru_wali' },
-    { id: 'u2', label: 'Ms. Fatimah Zahra', sub: 'Guru Wali 7.1', role: 'guru_wali' },
-    { id: 'u5', label: 'Admin Sekolah', sub: 'Kesiswaan & IT', role: 'admin' },
-    { id: 'u6', label: 'Bpk. Bambang Irawan', sub: 'Wali Siswa (Orang Tua)', role: 'orang_tua' },
-  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in no-print">
@@ -105,39 +96,6 @@ function UserProfileModal({
           <span className="px-2.5 py-0.5 rounded-full font-bold bg-[#dbe1ff] text-[#003ea8] capitalize">
             {currentUser.kelas ? `Wali ${currentUser.kelas}` : currentUser.role || 'Pengguna'}
           </span>
-        </div>
-
-        {/* Beralih Akun Cepat (Demo) */}
-        <div className="space-y-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#45464d] block">
-            Beralih Akun (Mode Demo):
-          </span>
-          <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-            {demoAccounts.map(acc => {
-              const target = USERS.find(u => u.id === acc.id);
-              return (
-                <button
-                  key={acc.id}
-                  onClick={() => {
-                    if (target) {
-                      switchUser(acc.id);
-                      onClose();
-                      router.push(getDashboardPath(acc.role as any));
-                    }
-                  }}
-                  className="w-full p-2.5 rounded-xl bg-[#f7f9fb] hover:bg-[#dbe1ff]/30 text-left flex items-center justify-between border border-slate-100 transition-colors"
-                >
-                  <div>
-                    <p className="font-bold text-xs text-[#191c1e]">{acc.label}</p>
-                    <p className="text-[10px] text-[#45464d]">{acc.sub}</p>
-                  </div>
-                  <span className="material-symbols-outlined text-[16px] text-[#0051d5]">
-                    swap_horiz
-                  </span>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Tombol Logout */}
