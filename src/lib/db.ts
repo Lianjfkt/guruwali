@@ -68,6 +68,24 @@ export async function updateStudentStatus(
 }
 
 /**
+ * Update data lengkap siswa
+ */
+export async function updateStudent(
+  id: string,
+  data: Partial<Omit<Student, 'id'>>
+): Promise<Student> {
+  const { data: updated, error } = await supabase
+    .from('students')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(`updateStudent: ${error.message}`);
+  return updated as Student;
+}
+
+/**
  * Hapus siswa (cascade: semua sesi siswa ini juga terhapus)
  */
 export async function deleteStudent(id: string): Promise<void> {
@@ -185,6 +203,22 @@ export async function getAllUsers(): Promise<User[]> {
 
   if (error) throw new Error(`getAllUsers: ${error.message}`);
   return (data || []) as User[];
+}
+
+/**
+ * Update profil pengguna di public.users (nama, role, status)
+ * Catatan: perubahan email dilakukan via Supabase Auth (butuh service_role)
+ */
+export async function updateUser(
+  id: string,
+  data: Partial<Pick<User, 'nama' | 'role' | 'status'>>
+): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update(data)
+    .eq('id', id);
+
+  if (error) throw new Error(`updateUser: ${error.message}`);
 }
 
 import { computeClassSummaries, computeGuruWaliSummaries } from './data';

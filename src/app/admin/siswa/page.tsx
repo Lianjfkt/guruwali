@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { AdminLayout } from '@/components/layouts';
 import { getInitials } from '@/lib/data';
-import { getAllStudents, getAllSessions, getAllGuruWali, addStudent, deleteStudent } from '@/lib/db';
+import { getAllStudents, getAllSessions, getAllGuruWali, addStudent, updateStudent, deleteStudent } from '@/lib/db';
 import { Student, MentoringSession, User } from '@/lib/types';
 
 const KELAS_OPTIONS = [
@@ -28,12 +28,26 @@ export default function AdminSiswaPage() {
   const [formError, setFormError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Form state
+  // Add form state
   const [formNama, setFormNama] = useState('');
   const [formNisgm, setFormNisgm] = useState('');
   const [formKelas, setFormKelas] = useState('8.1');
   const [formGuruId, setFormGuruId] = useState('');
   const [formStatus, setFormStatus] = useState<Student['status_pendampingan']>('stabil');
+
+  // Edit state
+  const [editTarget, setEditTarget] = useState<Student | null>(null);
+  const [editNama, setEditNama] = useState('');
+  const [editNisn, setEditNisn] = useState('');
+  const [editKelas, setEditKelas] = useState('8.1');
+  const [editGuruId, setEditGuruId] = useState('');
+  const [editStatus, setEditStatus] = useState<Student['status_pendampingan']>('stabil');
+  const [editError, setEditError] = useState('');
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  // Delete confirm state
+  const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const reloadStudents = useCallback(async () => {
     try {
@@ -132,17 +146,69 @@ export default function AdminSiswaPage() {
     }
   };
 
-  const handleDeleteStudent = async (id: string, nama: string) => {
-    if (confirm(`Yakin ingin menghapus siswa "${nama}"?`)) {
-      try {
-        await deleteStudent(id);
-        await reloadStudents();
-        setSuccessMsg(`Data siswa "${nama}" berhasil dihapus.`);
-        setTimeout(() => setSuccessMsg(''), 3500);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Gagal menghapus siswa.';
-        alert(message);
-      }
+  const handleDeleteStudent = async () => {
+    if (!deleteTarget) return;
+    try {
+      setIsDeleting(true);
+      await deleteStudent(deleteTarget.id);
+      await reloadStudents();
+      setSuccessMsg(`Data siswa "${deleteTarget.nama}" berhasil dihapus.`);
+      setTimeout(() => setSuccessMsg(''), 3500);
+      setDeleteTarget(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menghapus siswa.';
+      alert(message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openEdit = (s: Student) => {
+    setEditTarget(s);
+    setEditNama(s.nama);
+    setEditNisn(s.nisn);
+    setEditKelas(s.kelas);
+    setEditGuruId(s.guru_wali_id);
+    setEditStatus(s.status_pendampingan);
+    setEditError('');
+  };
+
+  const handleEditStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    setEditError('');
+
+    if (!editNama.trim() || editNama.trim().length < 3) {
+      setEditError('Nama siswa minimal 3 karakter.');
+      return;
+    }
+    if (!editNisn.trim() || !/^\d{6,12}$/.test(editNisn.trim())) {
+      setEditError('NISGM harus berupa 6–12 digit angka.');
+      return;
+    }
+    if (students.some(s => s.nisn === editNisn.trim() && s.id !== editTarget.id)) {
+      setEditError('NISGM ini sudah digunakan siswa lain.');
+      return;
+    }
+
+    try {
+      setIsEditSubmitting(true);
+      await updateStudent(editTarget.id, {
+        nama: editNama.trim(),
+        nisn: editNisn.trim(),
+        kelas: editKelas,
+        guru_wali_id: editGuruId,
+        status_pendampingan: editStatus,
+      });
+      setSuccessMsg(`Data siswa "${editNama}" berhasil diperbarui.`);
+      setTimeout(() => setSuccessMsg(''), 3500);
+      setEditTarget(null);
+      await reloadStudents();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal memperbarui data siswa.';
+      setEditError(message);
+    } finally {
+      setIsEditSubmitting(false);
     }
   };
 
@@ -315,7 +381,14 @@ export default function AdminSiswaPage() {
                         </span>
                       )}
                       <button
-                        onClick={() => handleDeleteStudent(student.id, student.nama)}
+                        onClick={() => openEdit(student)}
+                        className="w-7 h-7 rounded-full bg-[#f2f4f6] hover:bg-[#dbe1ff] hover:text-[#003ea8] text-[#76777d] flex items-center justify-center transition-colors"
+                        title="Edit siswa"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">edit</span>
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(student)}
                         className="w-7 h-7 rounded-full bg-[#f2f4f6] hover:bg-[#ffdad6] hover:text-[#ba1a1a] text-[#76777d] flex items-center justify-center transition-colors"
                         title="Hapus siswa"
                       >
@@ -449,6 +522,157 @@ export default function AdminSiswaPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* ─── MODAL: Edit Siswa ───────────────────────────────────── */}
+        {editTarget && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl animate-fade-in">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-[#191c1e]">Edit Data Siswa</h3>
+                  <p className="text-[11px] text-[#76777d]">NISGM: {editTarget.nisn}</p>
+                </div>
+                <button
+                  onClick={() => setEditTarget(null)}
+                  className="w-8 h-8 rounded-full bg-[#eceef0] flex items-center justify-center text-[#45464d] hover:bg-[#e0e3e5]"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+
+              {editError && (
+                <div className="bg-[#ffdad6] text-[#ba1a1a] rounded-xl p-3 text-xs flex items-start gap-2">
+                  <span className="material-symbols-outlined text-[16px] flex-shrink-0 mt-0.5">error</span>
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleEditStudent} className="space-y-3">
+                <div>
+                  <label className="text-[11px] font-bold text-[#45464d] block mb-1">Nama Lengkap Siswa</label>
+                  <input
+                    type="text"
+                    required
+                    value={editNama}
+                    onChange={e => setEditNama(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-[#f2f4f6] text-xs text-[#191c1e] focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-[#45464d] block mb-1">NISGM</label>
+                  <input
+                    type="text"
+                    required
+                    value={editNisn}
+                    onChange={e => setEditNisn(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-[#f2f4f6] text-xs text-[#191c1e] focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-bold text-[#45464d] block mb-1">Kelas</label>
+                    <select
+                      value={editKelas}
+                      onChange={e => setEditKelas(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-[#f2f4f6] text-xs text-[#191c1e] focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
+                    >
+                      {KELAS_OPTIONS.map(k => (
+                        <option key={k} value={k}>{k}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-[#45464d] block mb-1">Status</label>
+                    <select
+                      value={editStatus}
+                      onChange={e => setEditStatus(e.target.value as Student['status_pendampingan'])}
+                      className="w-full h-10 px-3 rounded-xl bg-[#f2f4f6] text-xs text-[#191c1e] focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
+                    >
+                      <option value="stabil">Stabil</option>
+                      <option value="aktif">Aktif</option>
+                      <option value="perlu_perhatian">Perlu Perhatian</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-[#45464d] block mb-1">Guru Wali Pembina</label>
+                  <select
+                    value={editGuruId}
+                    onChange={e => setEditGuruId(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-[#f2f4f6] text-xs text-[#191c1e] focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
+                  >
+                    {guruWaliList.map(g => (
+                      <option key={g.id} value={g.id}>{g.nama}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditTarget(null)}
+                    className="flex-1 h-10 rounded-xl bg-[#eceef0] text-xs font-semibold text-[#45464d] hover:bg-[#e0e3e5]"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isEditSubmitting}
+                    className="flex-1 h-10 rounded-xl bg-[#0051d5] text-xs font-bold text-white hover:bg-[#003ea8] disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {isEditSubmitting ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[15px]">save</span>
+                        <span>Simpan Perubahan</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ─── DIALOG: Konfirmasi Hapus Siswa ───────────────────────── */}
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl space-y-4 animate-fade-in">
+              <div className="w-14 h-14 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto">
+                <span className="material-symbols-outlined text-[28px] text-[#ba1a1a]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  person_remove
+                </span>
+              </div>
+              <div>
+                <h3 className="font-bold text-[#191c1e] text-base">Hapus Data Siswa?</h3>
+                <p className="text-xs text-[#45464d] mt-1 leading-relaxed">
+                  Data <strong>{deleteTarget.nama}</strong> (NISGM: {deleteTarget.nisn}) beserta seluruh riwayat sesi pendampingan akan dihapus permanen.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-[#f2f4f6] text-[#191c1e] text-sm font-semibold hover:bg-[#e6e8ea] transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleDeleteStudent}
+                  disabled={isDeleting}
+                  className="flex-1 py-2.5 rounded-xl bg-[#ba1a1a] text-white text-sm font-bold hover:bg-[#93000a] transition-colors disabled:opacity-60 flex items-center justify-center gap-1"
+                >
+                  {isDeleting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : 'Hapus'}
+                </button>
+              </div>
             </div>
           </div>
         )}
