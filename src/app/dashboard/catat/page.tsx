@@ -295,9 +295,14 @@ function CatatSesiContent() {
                         </div>
                         <div>
                           <p className="font-bold text-xs text-[#191c1e]">{s.nama}</p>
-                          <p className="text-[10px] text-[#45464d]">
-                            NISGM: {s.nisn} • {s.kelas}
-                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="px-1.5 py-0.2 rounded bg-[#dbe1ff] text-[#003ea8] font-bold text-[10px]">
+                              Kelas {s.kelas}
+                            </span>
+                            <span className="text-[10px] text-[#45464d]">
+                              NISGM: {s.nisn}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
@@ -360,16 +365,19 @@ function CatatSesiContent() {
                   {selectedStudents.map(s => (
                     <div
                       key={s.id}
-                      className="flex items-center gap-1 bg-[#dbe1ff] text-[#003ea8] rounded-full pl-1 pr-1.5 py-0.5"
+                      className="flex items-center gap-1.5 bg-[#dbe1ff] text-[#003ea8] rounded-full pl-1.5 pr-2 py-0.5"
                     >
                       <div className="w-5 h-5 rounded-full bg-[#003ea8] text-white flex items-center justify-center text-[9px] font-bold">
                         {getInitials(s.nama)}
                       </div>
                       <span className="text-[11px] font-semibold">{s.nama.split(' ')[0]}</span>
+                      <span className="text-[9px] bg-white/70 text-[#003ea8] font-bold px-1 rounded">
+                        {s.kelas}
+                      </span>
                       <button
                         type="button"
                         onClick={() => toggleStudentId(s.id)}
-                        className="w-4 h-4 rounded-full hover:bg-[#003ea8]/20 flex items-center justify-center"
+                        className="w-4 h-4 rounded-full hover:bg-[#003ea8]/20 flex items-center justify-center ml-0.5"
                       >
                         <span className="material-symbols-outlined text-[11px]">close</span>
                       </button>
