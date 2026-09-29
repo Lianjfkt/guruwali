@@ -187,8 +187,8 @@ export async function getAllUsers(): Promise<User[]> {
   return (data || []) as User[];
 }
 
-import { computeClassSummaries } from './data';
-import type { ClassSummary } from './types';
+import { computeClassSummaries, computeGuruWaliSummaries } from './data';
+import type { ClassSummary, GuruWaliSummary } from './types';
 
 export async function getClassSummaries(): Promise<ClassSummary[]> {
   const [students, sessions, teachers] = await Promise.all([
@@ -197,4 +197,13 @@ export async function getClassSummaries(): Promise<ClassSummary[]> {
     getAllGuruWali(),
   ]);
   return computeClassSummaries(students, sessions, teachers);
+}
+
+export async function getGuruWaliSummaries(): Promise<GuruWaliSummary[]> {
+  const [students, sessions, teachers] = await Promise.all([
+    getAllStudents(),
+    getAllSessions(),
+    getAllGuruWali(),
+  ]);
+  return computeGuruWaliSummaries(students, sessions, teachers);
 }

@@ -58,11 +58,22 @@ export interface MentoringSession {
 
 export interface ClassSummary {
   kelas: string;
-  guru_wali_id: string;
-  guru_wali_nama: string;
+  guru_wali_id?: string;
+  guru_wali_nama?: string;
   total_siswa: number;
   siswa_terjangkau: number;
   total_sesi: number;
+  status: 'tuntas' | 'berjalan' | 'perlu_perhatian';
+}
+
+export interface GuruWaliSummary {
+  guru_wali_id: string;
+  guru_wali_nama: string;
+  email: string;
+  total_siswa: number;
+  siswa_terjangkau: number;
+  total_sesi: number;
+  daftar_kelas: string[];
   status: 'tuntas' | 'berjalan' | 'perlu_perhatian';
 }
 

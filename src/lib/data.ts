@@ -7,7 +7,7 @@
 // File ini hanya berisi data statis dan helper functions.
 // ============================================================
 
-import { User, Student, MentoringArea, MentoringSession, ClassSummary } from './types';
+import { User, Student, MentoringArea, MentoringSession, ClassSummary, GuruWaliSummary } from './types';
 
 // --- PENGGUNA (sementara — akan dihapus setelah auth Supabase aktif) ---
 // Digunakan hanya untuk backward compat di portal-orang-tua dan layouts
@@ -232,22 +232,66 @@ export function getInitials(nama: string): string {
 }
 
 /**
- * Hitung rekap kelas secara dinamis dari data yang sudah dimuat
- * (dipakai di admin dashboard setelah data diambil dari Supabase)
+ * Hitung rekap performa per Guru Wali (berdasarkan siswa binaan masing-masing lintas kelas)
  */
-export function computeClassSummaries(
-  students: import('./types').Student[],
+export function computeGuruWaliSummaries(
+  students: Student[],
   sessions: MentoringSession[],
   teachers: User[]
+): GuruWaliSummary[] {
+  const guruList = teachers.filter(t => t.role === 'guru_wali');
+  return guruList.map(t => {
+    const myStudents = students.filter(s => s.guru_wali_id === t.id);
+    const studentIds = new Set(myStudents.map(s => s.id));
+    const mySessions = sessions.filter(
+      s => s.dicatat_oleh === t.id || studentIds.has(s.siswa_id)
+    );
+    const coveredStudentIds = new Set(mySessions.map(s => s.siswa_id));
+    const totalSiswa = myStudents.length;
+    const siswaTerjangkau = totalSiswa > 0
+      ? myStudents.filter(s => coveredStudentIds.has(s.id)).length
+      : 0;
+    const pct = totalSiswa > 0 ? (siswaTerjangkau / totalSiswa) * 100 : 0;
+
+    let status: 'tuntas' | 'berjalan' | 'perlu_perhatian' = 'berjalan';
+    if (totalSiswa > 0 && pct === 100) status = 'tuntas';
+    else if (totalSiswa > 0 && pct < 50) status = 'perlu_perhatian';
+
+    const uniqueKelas = Array.from(new Set(myStudents.map(s => s.kelas))).sort();
+
+    return {
+      guru_wali_id: t.id,
+      guru_wali_nama: t.nama,
+      email: t.email,
+      total_siswa: totalSiswa,
+      siswa_terjangkau: siswaTerjangkau,
+      total_sesi: mySessions.length,
+      daftar_kelas: uniqueKelas,
+      status,
+    };
+  });
+}
+
+/**
+ * Hitung rekap per Rombel / Kelas siswa secara dinamis dari data siswa yang ada
+ */
+export function computeClassSummaries(
+  students: Student[],
+  sessions: MentoringSession[],
+  _teachers?: User[]
 ): ClassSummary[] {
-  return teachers.map(t => {
-    const classStudents = students.filter(
-      s => s.guru_wali_id === t.id || s.kelas === t.kelas
-    );
+  const standardClasses = [
+    '7.1', '7.2', '7.3', '7.4',
+    '8.1', '8.2', '8.3', '8.4',
+    '9.1', '9.2', '9.3', '9.4'
+  ];
+  const studentClasses = Array.from(new Set(students.map(s => s.kelas)));
+  const allClasses = Array.from(new Set([...standardClasses, ...studentClasses])).sort();
+
+  return allClasses.map(kelasName => {
+    const classStudents = students.filter(s => s.kelas === kelasName);
     const studentIds = new Set(classStudents.map(s => s.id));
-    const classSessions = sessions.filter(
-      s => studentIds.has(s.siswa_id) || s.dicatat_oleh === t.id
-    );
+    const classSessions = sessions.filter(s => studentIds.has(s.siswa_id));
     const coveredStudentIds = new Set(classSessions.map(s => s.siswa_id));
     const totalSiswa = classStudents.length;
     const siswaTerjangkau = totalSiswa > 0
@@ -260,9 +304,7 @@ export function computeClassSummaries(
     else if (totalSiswa > 0 && pct < 50) status = 'perlu_perhatian';
 
     return {
-      kelas: t.kelas || '',
-      guru_wali_id: t.id,
-      guru_wali_nama: t.nama,
+      kelas: kelasName,
       total_siswa: totalSiswa,
       siswa_terjangkau: siswaTerjangkau,
       total_sesi: classSessions.length,
