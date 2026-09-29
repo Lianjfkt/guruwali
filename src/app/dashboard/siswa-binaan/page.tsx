@@ -20,9 +20,16 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   aktif: { bg: '#dbe1ff', text: '#003ea8' },
 };
 
+const KELAS_OPTIONS = [
+  '7.1', '7.2', '7.3', '7.4',
+  '8.1', '8.2', '8.3', '8.4',
+  '9.1', '9.2', '9.3', '9.4',
+];
+
 const EMPTY_FORM = {
   nama: '',
   nisn: '',
+  kelas: '7.1',
   status_pendampingan: 'stabil' as Student['status_pendampingan'],
 };
 
@@ -38,6 +45,7 @@ export default function SiswaBinaanPage() {
   const [formError, setFormError] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [levelFilter, setLevelFilter] = useState<'all' | '7' | '8' | '9'>('all');
   const [successMsg, setSuccessMsg] = useState('');
 
   const reload = useCallback(async () => {
@@ -99,7 +107,7 @@ export default function SiswaBinaanPage() {
       const newStudent = await addStudent({
         nama: form.nama.trim(),
         nisn: form.nisn.trim(),
-        kelas: user?.kelas || '',
+        kelas: form.kelas,
         guru_wali_id: user?.id || '',
         status_pendampingan: form.status_pendampingan,
       });
@@ -107,7 +115,7 @@ export default function SiswaBinaanPage() {
       setShowAddModal(false);
       setForm(EMPTY_FORM);
       await reload();
-      setSuccessMsg(`Siswa "${newStudent.nama}" berhasil ditambahkan ke database.`);
+      setSuccessMsg(`Siswa "${newStudent.nama}" (Kelas ${newStudent.kelas}) berhasil ditambahkan.`);
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Gagal menyimpan data siswa.';
@@ -130,10 +138,14 @@ export default function SiswaBinaanPage() {
     }
   };
 
-  const filtered = students.filter(s =>
-    s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.nisn.includes(searchQuery)
-  );
+  const filtered = students.filter(s => {
+    const matchSearch =
+      s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.nisn.includes(searchQuery);
+    const matchLevel =
+      levelFilter === 'all' ? true : s.kelas.startsWith(levelFilter);
+    return matchSearch && matchLevel;
+  });
 
   if (isLoading || !user) {
     return (
@@ -163,7 +175,7 @@ export default function SiswaBinaanPage() {
           <div className="mt-3 relative z-10">
             <h1 className="text-xl font-bold text-[#191c1e] tracking-tight">Siswa Binaan</h1>
             <p className="text-xs text-[#45464d] mt-0.5">
-              Kelola daftar siswa perwalian kelas <strong>{user.kelas}</strong>. Tambah atau hapus siswa sesuai kebutuhan.
+              Kelola daftar siswa binaan Anda lintas kelas. Tambah atau hapus siswa sesuai kebutuhan.
             </p>
           </div>
           {/* Stats chips */}
@@ -212,6 +224,28 @@ export default function SiswaBinaanPage() {
           </button>
         </div>
 
+        {/* Level filter tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          {[
+            { id: 'all', label: 'Semua Kelas' },
+            { id: '7', label: 'Kelas 7' },
+            { id: '8', label: 'Kelas 8' },
+            { id: '9', label: 'Kelas 9' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setLevelFilter(tab.id as 'all' | '7' | '8' | '9')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                levelFilter === tab.id
+                  ? 'bg-[#191c1e] text-white shadow-xs'
+                  : 'bg-white text-[#45464d] hover:bg-[#f2f4f6] border border-slate-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Student List */}
         <div className="space-y-2">
           {filtered.length === 0 && (
@@ -244,7 +278,10 @@ export default function SiswaBinaanPage() {
                   {/* Info */}
                   <div className="min-w-0">
                     <p className="font-bold text-xs text-[#191c1e] truncate">{s.nama}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-[10px] font-bold text-[#0051d5] bg-[#dbe1ff] px-2 py-0.5 rounded-md">
+                        Kelas {s.kelas}
+                      </span>
                       <span className="text-[10px] text-[#45464d]">NISGM: {s.nisn}</span>
                       <span className="text-[10px] text-[#c6c6cd]">•</span>
                       <span
@@ -282,7 +319,7 @@ export default function SiswaBinaanPage() {
         <div className="bg-[#f2f4f6] rounded-xl p-3 flex items-start gap-2">
           <span className="material-symbols-outlined text-[16px] text-[#76777d] flex-shrink-0 mt-0.5">info</span>
           <p className="text-[11px] text-[#45464d] leading-relaxed">
-            Data siswa binaan terhubung langsung dengan pencatatan jurnal pendampingan 4 pilar kelas <strong>{user.kelas}</strong>.
+            Data siswa binaan terhubung langsung dengan pencatatan jurnal pendampingan 4 pilar.
           </p>
         </div>
       </div>
@@ -295,7 +332,7 @@ export default function SiswaBinaanPage() {
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-[#191c1e] text-base">Tambah Siswa Binaan</h3>
-                <p className="text-xs text-[#45464d] mt-0.5">Isi data siswa baru untuk kelas {user.kelas}</p>
+                <p className="text-xs text-[#45464d] mt-0.5">Isi data siswa baru yang Anda bina</p>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -369,13 +406,21 @@ export default function SiswaBinaanPage() {
                 </div>
               </div>
 
-              {/* Kelas (read-only from user) */}
-              <div className="bg-[#f7f9fb] rounded-xl p-3 flex items-center gap-2 border border-slate-100">
-                <span className="material-symbols-outlined text-[16px] text-[#76777d]">school</span>
-                <div>
-                  <p className="text-[10px] text-[#76777d]">Kelas Perwalian</p>
-                  <p className="text-xs font-bold text-[#191c1e]">{user.kelas}</p>
-                </div>
+              {/* Kelas Siswa (Pilihan Kelas) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#45464d] flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px] text-[#0051d5]">school</span>
+                  Kelas Siswa
+                </label>
+                <select
+                  value={form.kelas}
+                  onChange={e => setForm(f => ({ ...f, kelas: e.target.value }))}
+                  className="w-full h-11 px-4 rounded-xl bg-[#f7f9fb] text-sm text-[#191c1e] border border-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
+                >
+                  {KELAS_OPTIONS.map(k => (
+                    <option key={k} value={k}>Kelas {k}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Error */}

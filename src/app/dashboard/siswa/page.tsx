@@ -47,10 +47,10 @@ export default function SiswaPage() {
     loadData();
   }, [user]);
 
-  // Siswa yang diampu guru wali yang login (atau kelas guru wali)
+  // Siswa yang diampu guru wali yang login
   const myStudents = useMemo(() => {
     if (!user) return [];
-    return students.filter(s => s.guru_wali_id === user.id || s.kelas === user.kelas);
+    return students.filter(s => s.guru_wali_id === user.id);
   }, [user, students]);
 
   const filteredStudents = useMemo(() => {
@@ -109,7 +109,7 @@ export default function SiswaPage() {
                 Daftar Perwalian
               </span>
               <h1 className="text-xl font-bold text-[#191c1e]">
-                Siswa Kelas {user.kelas || '8.1'}
+                Siswa Binaan
               </h1>
             </div>
             <span className="px-3 py-1 rounded-full bg-[#dbe1ff] text-[#003ea8] text-xs font-bold">
@@ -198,7 +198,7 @@ export default function SiswaPage() {
                 </p>
                 <p className="text-xs text-[#45464d] mt-1 max-w-sm">
                   {myStudents.length === 0
-                    ? `Daftar siswa kelas ${user?.kelas || ''} masih kosong. Tambahkan siswa binaan Anda untuk mulai mencatat pendampingan.`
+                    ? 'Daftar siswa binaan Anda masih kosong. Tambahkan siswa binaan Anda untuk mulai mencatat pendampingan.'
                     : 'Coba kata kunci pencarian atau filter status yang lain.'}
                 </p>
               </div>
@@ -238,8 +238,8 @@ export default function SiswaPage() {
                         <div className="flex items-center gap-2 text-xs text-[#45464d] mt-0.5">
                           <span>NISGM: {student.nisn}</span>
                           <span className="w-1 h-1 rounded-full bg-[#c6c6cd]" />
-                          <span className="px-1.5 py-0.2 rounded bg-[#eceef0] font-semibold text-[11px]">
-                            {student.kelas}
+                          <span className="px-2 py-0.5 rounded bg-[#dbe1ff] text-[#003ea8] font-bold text-[11px]">
+                            Kelas {student.kelas}
                           </span>
                         </div>
                       </div>

@@ -217,8 +217,8 @@ export default function StudentDetailPage({
                   <p className="text-xs text-[#45464d] flex items-center gap-1.5 mt-0.5">
                     <span className="font-medium text-[#191c1e]">NISGM: {student.nisn}</span>
                     <span className="w-1 h-1 rounded-full bg-[#c6c6cd]" />
-                    <span className="bg-[#eceef0] px-2 py-0.5 rounded text-[#191c1e] font-semibold text-[11px]">
-                      {student.kelas}
+                    <span className="bg-[#dbe1ff] text-[#003ea8] px-2 py-0.5 rounded font-bold text-[11px]">
+                      Kelas {student.kelas}
                     </span>
                   </p>
                 </div>
@@ -506,7 +506,7 @@ export default function StudentDetailPage({
             </div>
             <div className="text-center">
               <p>Bandar Lampung, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-              <p className="font-semibold">Guru Wali Kelas {student.kelas}</p>
+              <p className="font-semibold">Guru Wali Pembina</p>
               <div className="h-16" />
               <p className="font-bold underline">{guruWali?.nama || 'Mr. Ahmad Fauzi, S.Pd.'}</p>
               <p className="text-[10px]">NIP. 19850914 201001 1 012</p>
