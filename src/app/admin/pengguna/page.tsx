@@ -45,8 +45,21 @@ export default function AdminPenggunaPage() {
   }, []);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    let ignore = false;
+    getAllUsers()
+      .then(data => {
+        if (!ignore) {
+          setUsersList(data);
+          setIsDbLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!ignore) setIsDbLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const filteredUsers = useMemo(() => {
     return usersList.filter(u => {
@@ -101,8 +114,9 @@ export default function AdminPenggunaPage() {
       setNewPassword('');
       await loadUsers();
       setTimeout(() => setSuccessMsg(''), 5000);
-    } catch (err: any) {
-      setFormError(err.message || 'Terjadi kesalahan saat membuat akun.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat membuat akun.';
+      setFormError(message);
     } finally {
       setIsSubmitting(false);
     }

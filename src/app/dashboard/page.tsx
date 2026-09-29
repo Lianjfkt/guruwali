@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { GuruWaliLayout } from '@/components/layouts';
 import {
   MENTORING_AREAS,
-  getAreaDistribution, getRelativeTime, formatDateShort, getInitials
+  getAreaDistribution, getRelativeTime, getInitials
 } from '@/lib/data';
 import { getStudentsByGuruWali, getSessionsByGuruWali } from '@/lib/db';
 import { Student, MentoringSession } from '@/lib/types';
@@ -86,7 +86,7 @@ export default function DashboardPage() {
               Keluar
             </button>
           </div>
-          <h1 className="text-lg font-bold text-[#191c1e]">Assalamu'alaikum, {user.nama.replace('Mr. ', '').replace('Ms. ', '').split(',')[0]}</h1>
+          <h1 className="text-lg font-bold text-[#191c1e]">Assalamu&apos;alaikum, {user.nama.replace('Mr. ', '').replace('Ms. ', '').split(',')[0]}</h1>
           <p className="text-xs text-[#45464d] mt-0.5 mb-3">Pantau perkembangan akhlak, capaian belajar, dan kesiapan siswa perwalian.</p>
           <Link
             href="/dashboard/catat"

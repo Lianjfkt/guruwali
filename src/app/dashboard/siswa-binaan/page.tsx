@@ -56,8 +56,24 @@ export default function SiswaBinaanPage() {
   useEffect(() => {
     if (!isLoading && !user) { router.replace('/login'); return; }
     if (!isLoading && user?.role !== 'guru_wali') { router.replace('/admin'); return; }
-    reload();
-  }, [user, isLoading, router, reload]);
+    if (!user) return;
+
+    let ignore = false;
+    getStudentsByGuruWali(user.id)
+      .then(data => {
+        if (!ignore) {
+          setStudents(data);
+          setIsDbLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!ignore) setIsDbLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [user, isLoading, router]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,8 +109,9 @@ export default function SiswaBinaanPage() {
       await reload();
       setSuccessMsg(`Siswa "${newStudent.nama}" berhasil ditambahkan ke database.`);
       setTimeout(() => setSuccessMsg(''), 4000);
-    } catch (err: any) {
-      setFormError(err.message || 'Gagal menyimpan data siswa.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan data siswa.';
+      setFormError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -107,8 +124,9 @@ export default function SiswaBinaanPage() {
       await reload();
       setSuccessMsg('Siswa berhasil dihapus dari database.');
       setTimeout(() => setSuccessMsg(''), 4000);
-    } catch (err: any) {
-      alert(err.message || 'Gagal menghapus siswa.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menghapus siswa.';
+      alert(message);
     }
   };
 

@@ -101,9 +101,10 @@ export async function POST(req: NextRequest) {
       message: `Akun ${nama} (${email}) berhasil didaftarkan! Jika fitur konfirmasi email aktif di Supabase, mintalah guru memverifikasi surel atau aktifkan SUPABASE_SERVICE_ROLE_KEY untuk auto-confirm.`,
       user: { id: signUpData.user.id, nama, email, role, kelas },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan pada server saat membuat akun.';
     return NextResponse.json(
-      { error: err.message || 'Terjadi kesalahan pada server saat membuat akun.' },
+      { error: message },
       { status: 500 }
     );
   }

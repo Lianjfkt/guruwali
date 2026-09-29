@@ -22,15 +22,31 @@ function CatatSesiContent() {
   const initialStudentId = searchParams.get('siswa') || '';
 
   // ── Form State ──────────────────────────────────────────────────────────
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(() =>
+    initialStudentId ? [initialStudentId] : []
+  );
+  const [prevInitialStudentId, setPrevInitialStudentId] = useState(initialStudentId);
+  if (initialStudentId !== prevInitialStudentId) {
+    setPrevInitialStudentId(initialStudentId);
+    if (initialStudentId) {
+      setSelectedStudentIds([initialStudentId]);
+    }
+  }
+
   const [tanggal, setTanggal] = useState<string>(new Date().toISOString().split('T')[0]);
   const [waktu, setWaktu] = useState<string>('10:15');
   const [metode, setMetode] = useState<string>('Tatap Muka di Ruang Guru Wali / Pojok Konseling');
   const [selectedArea, setSelectedArea] = useState<MentoringAreaId>('akademik');
-  const [selectedKegiatan, setSelectedKegiatan] = useState<string[]>([]);
+  const [selectedKegiatan, setSelectedKegiatan] = useState<string[]>(() => {
+    const area = getMentoringArea('akademik');
+    return area && area.daftar_kegiatan.length > 0 ? [area.daftar_kegiatan[0]] : [];
+  });
   const [kegiatanTambahan, setKegiatanTambahan] = useState<string>('');
   const [temuan, setTemuan] = useState<string>('');
-  const [selectedTindakLanjut, setSelectedTindakLanjut] = useState<string[]>([]);
+  const [selectedTindakLanjut, setSelectedTindakLanjut] = useState<string[]>(() => {
+    const area = getMentoringArea('akademik');
+    return area && area.opsi_tindak_lanjut.length > 0 ? [area.opsi_tindak_lanjut[0]] : [];
+  });
   const [targetEvaluasi, setTargetEvaluasi] = useState<string>('');
   const [showStudentPicker, setShowStudentPicker] = useState<boolean>(false);
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
@@ -65,25 +81,19 @@ function CatatSesiContent() {
     setTargetEvaluasi(end.toISOString().split('T')[0]);
   };
 
-  // ── Sync initial student from URL ─────────────────────────────────────
-  useEffect(() => {
-    if (initialStudentId) {
-      setSelectedStudentIds([initialStudentId]);
-    }
-  }, [initialStudentId]);
-
   // ── Current area ──────────────────────────────────────────────────────
   const currentArea = useMemo(() => {
     return getMentoringArea(selectedArea) || MENTORING_AREAS[0];
   }, [selectedArea]);
 
-  // ── When area changes, reset kegiatan / tindak lanjut ────────────────
-  useEffect(() => {
-    if (currentArea) {
-      setSelectedKegiatan(currentArea.daftar_kegiatan.length > 0 ? [currentArea.daftar_kegiatan[0]] : []);
-      setSelectedTindakLanjut(currentArea.opsi_tindak_lanjut.length > 0 ? [currentArea.opsi_tindak_lanjut[0]] : []);
+  const handleSelectArea = (areaId: MentoringAreaId) => {
+    setSelectedArea(areaId);
+    const area = getMentoringArea(areaId);
+    if (area) {
+      setSelectedKegiatan(area.daftar_kegiatan.length > 0 ? [area.daftar_kegiatan[0]] : []);
+      setSelectedTindakLanjut(area.opsi_tindak_lanjut.length > 0 ? [area.opsi_tindak_lanjut[0]] : []);
     }
-  }, [currentArea]);
+  };
 
   // ── Helpers ────────────────────────────────────────────────────────────
   const toggleStudentId = (id: string) => {
@@ -157,8 +167,9 @@ function CatatSesiContent() {
         )
       );
       setShowSuccessModal(true);
-    } catch (err: any) {
-      setFormError(err.message || 'Gagal menyimpan sesi pendampingan ke database.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan sesi pendampingan ke database.';
+      setFormError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -492,7 +503,7 @@ function CatatSesiContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {/* Area 1: Akademik */}
               <div
-                onClick={() => setSelectedArea('akademik')}
+                onClick={() => handleSelectArea('akademik')}
                 className={`p-3 rounded-xl cursor-pointer transition-all flex items-center gap-3 border ${
                   selectedArea === 'akademik'
                     ? 'bg-[#dbe1ff]/40 border-[#0051d5] shadow-xs'
@@ -513,7 +524,7 @@ function CatatSesiContent() {
 
               {/* Area 2: Kompetensi */}
               <div
-                onClick={() => setSelectedArea('kompetensi')}
+                onClick={() => handleSelectArea('kompetensi')}
                 className={`p-3 rounded-xl cursor-pointer transition-all flex items-center gap-3 border ${
                   selectedArea === 'kompetensi'
                     ? 'bg-[#eceef0] border-[#3f465c] shadow-xs'
@@ -534,7 +545,7 @@ function CatatSesiContent() {
 
               {/* Area 3: Karakter */}
               <div
-                onClick={() => setSelectedArea('karakter')}
+                onClick={() => handleSelectArea('karakter')}
                 className={`p-3 rounded-xl cursor-pointer transition-all flex items-center gap-3 border ${
                   selectedArea === 'karakter'
                     ? 'bg-[#89f5e7]/30 border-[#0c9488] shadow-xs'
@@ -555,7 +566,7 @@ function CatatSesiContent() {
 
               {/* Area 4: Kolaborasi */}
               <div
-                onClick={() => setSelectedArea('kolaborasi')}
+                onClick={() => handleSelectArea('kolaborasi')}
                 className={`p-3 rounded-xl cursor-pointer transition-all flex items-center gap-3 border ${
                   selectedArea === 'kolaborasi'
                     ? 'bg-[#f2f4f6] border-[#565e74] shadow-xs'

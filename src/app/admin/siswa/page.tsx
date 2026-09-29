@@ -57,8 +57,25 @@ export default function AdminSiswaPage() {
   }, [formGuruId]);
 
   useEffect(() => {
-    reloadStudents();
-  }, [reloadStudents]);
+    let ignore = false;
+    Promise.all([getAllStudents(), getAllGuruWali()])
+      .then(([studs, gurus]) => {
+        if (!ignore) {
+          setStudents(studs);
+          setGuruWaliList(gurus);
+          if (gurus.length > 0 && !formGuruId) {
+            setFormGuruId(gurus[0].id);
+          }
+          setIsDbLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!ignore) setIsDbLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [formGuruId]);
 
   const filtered = useMemo(() => {
     return students.filter(s => {
@@ -107,8 +124,9 @@ export default function AdminSiswaPage() {
       await reloadStudents();
       setSuccessMsg(`Siswa "${newStudent.nama}" berhasil ditambahkan.`);
       setTimeout(() => setSuccessMsg(''), 3500);
-    } catch (err: any) {
-      setFormError(err.message || 'Gagal menambahkan data siswa.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menambahkan data siswa.';
+      setFormError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -121,8 +139,9 @@ export default function AdminSiswaPage() {
         await reloadStudents();
         setSuccessMsg(`Data siswa "${nama}" berhasil dihapus.`);
         setTimeout(() => setSuccessMsg(''), 3500);
-      } catch (err: any) {
-        alert(err.message || 'Gagal menghapus siswa.');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Gagal menghapus siswa.';
+        alert(message);
       }
     }
   };
