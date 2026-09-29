@@ -248,7 +248,12 @@ export default function SiswaBinaanPage() {
 
         {/* Student List */}
         <div className="space-y-2">
-          {filtered.length === 0 && (
+          {isDbLoading ? (
+            <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+              <div className="w-8 h-8 border-3 border-[#0051d5] border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-[#76777d] mt-2 font-medium">Memuat siswa binaan...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm">
               <div className="w-14 h-14 rounded-full bg-[#f2f4f6] flex items-center justify-center mx-auto mb-3">
                 <span className="material-symbols-outlined text-[28px] text-[#76777d]">search_off</span>
@@ -260,7 +265,7 @@ export default function SiswaBinaanPage() {
                 {searchQuery ? 'Coba kata kunci lain.' : 'Klik tombol "Tambah" untuk menambah siswa ke daftar.'}
               </p>
             </div>
-          )}
+          ) : null}
 
           {filtered.map(s => {
             const initials = getInitials(s.nama);
@@ -442,10 +447,11 @@ export default function SiswaBinaanPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-2 min-w-0 flex-grow py-3 rounded-xl bg-[#191c1e] text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#131b2e] transition-colors shadow-md"
+                  disabled={isSubmitting}
+                  className="flex-2 min-w-0 flex-grow py-3 rounded-xl bg-[#191c1e] text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#131b2e] transition-colors shadow-md disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>person_add</span>
-                  Tambah Siswa
+                  {isSubmitting ? 'Menyimpan...' : 'Tambah Siswa'}
                 </button>
               </div>
             </form>

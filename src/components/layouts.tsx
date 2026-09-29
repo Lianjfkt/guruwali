@@ -3,7 +3,7 @@
 import { ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth, getDashboardPath } from '@/lib/auth-context';
+import { useAuth } from '@/lib/auth-context';
 
 interface NavItem {
   path: string;

@@ -4,18 +4,15 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { AdminLayout } from '@/components/layouts';
 import { getInitials } from '@/lib/data';
-import { getAllUsers } from '@/lib/db';
-import { User, UserRole } from '@/lib/types';
+import { getAllUsers, getAllStudents } from '@/lib/db';
+import { User, UserRole, Student } from '@/lib/types';
 
-const KELAS_OPTIONS = [
-  '7.1', '7.2', '7.3', '7.4',
-  '8.1', '8.2', '8.3', '8.4',
-  '9.1', '9.2', '9.3', '9.4',
-];
+
 
 export default function AdminPenggunaPage() {
   const { user } = useAuth();
   const [usersList, setUsersList] = useState<User[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [isDbLoading, setIsDbLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [search, setSearch] = useState('');
@@ -30,13 +27,13 @@ export default function AdminPenggunaPage() {
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [newRole, setNewRole] = useState<UserRole>('guru_wali');
-  const [newKelas, setNewKelas] = useState('7.1');
 
   const loadUsers = useCallback(async () => {
     try {
       setIsDbLoading(true);
-      const data = await getAllUsers();
+      const [data, studs] = await Promise.all([getAllUsers(), getAllStudents()]);
       setUsersList(data);
+      setStudents(studs);
     } catch {
       // ignore
     } finally {
@@ -46,10 +43,11 @@ export default function AdminPenggunaPage() {
 
   useEffect(() => {
     let ignore = false;
-    getAllUsers()
-      .then(data => {
+    Promise.all([getAllUsers(), getAllStudents()])
+      .then(([data, studs]) => {
         if (!ignore) {
           setUsersList(data);
+          setStudents(studs);
           setIsDbLoading(false);
         }
       })
@@ -98,7 +96,6 @@ export default function AdminPenggunaPage() {
           email: newEmail.trim(),
           password: newPassword,
           role: newRole,
-          kelas: newRole === 'guru_wali' ? newKelas : undefined,
         }),
       });
 
@@ -259,11 +256,15 @@ export default function AdminPenggunaPage() {
                     <div className="flex flex-col min-w-0">
                       <span className="font-bold text-xs text-[#191c1e] truncate">{u.nama}</span>
                       <span className="text-[11px] text-[#45464d] truncate">{u.email}</span>
-                      {u.kelas && (
+                      {u.role === 'guru_wali' ? (
                         <span className="text-[10px] text-[#0051d5] font-semibold mt-0.5">
-                          Wali Kelas: {u.kelas}
+                          {students.filter(s => s.guru_wali_id === u.id).length} Siswa Binaan
                         </span>
-                      )}
+                      ) : u.kelas ? (
+                        <span className="text-[10px] text-[#0051d5] font-semibold mt-0.5">
+                          Kelas: {u.kelas}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 
@@ -383,21 +384,6 @@ export default function AdminPenggunaPage() {
                     <option value="orang_tua">Orang Tua / Wali Siswa</option>
                   </select>
                 </div>
-
-                {newRole === 'guru_wali' && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-[#45464d]">Alokasi Kelas</label>
-                    <select
-                      value={newKelas}
-                      onChange={e => setNewKelas(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-[#f7f9fb] text-xs font-medium text-[#191c1e] border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
-                    >
-                      {KELAS_OPTIONS.map(k => (
-                        <option key={k} value={k}>Kelas {k}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
 
                 <div className="pt-2 flex flex-col gap-2">
                   <button

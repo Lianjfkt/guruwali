@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { USERS, getMentoringArea, formatDate, formatDateShort, getInitials } from '@/lib/data';
+import { USERS, formatDate, formatDateShort, getInitials } from '@/lib/data';
 import { getStudentsByGuruWali, getAllStudents, getSessionsByStudent } from '@/lib/db';
 import { MentoringAreaId, MentoringSession, Student } from '@/lib/types';
 

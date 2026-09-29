@@ -7,16 +7,18 @@ import { useAuth } from '@/lib/auth-context';
 import { AdminLayout } from '@/components/layouts';
 import * as XLSX from 'xlsx';
 import { getAreaDistribution } from '@/lib/data';
-import { getAllStudents, getAllSessions, getAllGuruWali, getClassSummaries } from '@/lib/db';
-import { ClassSummary, Student, MentoringSession, User } from '@/lib/types';
+import { getAllStudents, getAllSessions, getAllGuruWali, getClassSummaries, getGuruWaliSummaries } from '@/lib/db';
+import { ClassSummary, GuruWaliSummary, Student, MentoringSession, User } from '@/lib/types';
 
 export default function AdminDashboardPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
   const [selectedLevel, setSelectedLevel] = useState<'all' | '7' | '8' | '9'>('all');
+  const [monitorTab, setMonitorTab] = useState<'guru_wali' | 'rombel'>('guru_wali');
   const [showExportModal, setShowExportModal] = useState(false);
   const [classes, setClasses] = useState<ClassSummary[]>([]);
+  const [guruSummaries, setGuruSummaries] = useState<GuruWaliSummary[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [sessions, setSessions] = useState<MentoringSession[]>([]);
   const [teachers, setTeachers] = useState<User[]>([]);
@@ -32,26 +34,36 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (!user || user.role !== 'admin') return;
+    let ignore = false;
     const load = async () => {
       try {
         setIsDbLoading(true);
-        const [cls, studs, sess, tchs] = await Promise.all([
+        const [cls, gw, studs, sess, tchs] = await Promise.all([
           getClassSummaries(),
+          getGuruWaliSummaries(),
           getAllStudents(),
           getAllSessions(),
           getAllGuruWali(),
         ]);
-        setClasses(cls);
-        setStudents(studs);
-        setSessions(sess);
-        setTeachers(tchs);
+        if (!ignore) {
+          setClasses(cls);
+          setGuruSummaries(gw);
+          setStudents(studs);
+          setSessions(sess);
+          setTeachers(tchs);
+        }
       } catch {
         // ignore load error
       } finally {
-        setIsDbLoading(false);
+        if (!ignore) {
+          setIsDbLoading(false);
+        }
       }
     };
     load();
+    return () => {
+      ignore = true;
+    };
   }, [user]);
 
   const currentYear = new Date().getFullYear();
@@ -67,7 +79,7 @@ export default function AdminDashboardPage() {
     const totalSiswa = filteredClasses.reduce((acc, c) => acc + c.total_siswa, 0);
     const totalTerjangkau = filteredClasses.reduce((acc, c) => acc + c.siswa_terjangkau, 0);
     const totalSesi = filteredClasses.reduce((acc, c) => acc + c.total_sesi, 0);
-    const totalGuru = filteredClasses.length;
+    const totalGuru = teachers.length;
     const coveragePct = totalSiswa > 0 ? Math.round((totalTerjangkau / totalSiswa) * 100) : 0;
 
     const activeGuruCount = teachers.filter(t => sessions.some(s => s.dicatat_oleh === t.id)).length;
@@ -111,7 +123,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  if (isLoading || !user) {
+  if (isLoading || isDbLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
         <div className="w-8 h-8 border-3 border-[#0051d5] border-t-transparent rounded-full animate-spin" />
@@ -389,83 +401,189 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
-          {/* Progress Per Rombel */}
-          <div className="space-y-2">
+          {/* Dual-Tab Monitoring: Per Guru Wali & Per Rombel */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-[#191c1e]">Progres Tiap Rombongan Belajar</h2>
-              <span className="text-xs text-[#0051d5] font-semibold">{filteredClasses.length} Kelas</span>
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-[#eceef0]">
+                <button
+                  type="button"
+                  onClick={() => setMonitorTab('guru_wali')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    monitorTab === 'guru_wali'
+                      ? 'bg-white text-[#0051d5] shadow-xs'
+                      : 'text-[#45464d] hover:text-[#191c1e]'
+                  }`}
+                >
+                  Per Guru Wali ({guruSummaries.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMonitorTab('rombel')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    monitorTab === 'rombel'
+                      ? 'bg-white text-[#0051d5] shadow-xs'
+                      : 'text-[#45464d] hover:text-[#191c1e]'
+                  }`}
+                >
+                  Per Rombel / Kelas ({filteredClasses.length})
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-2.5">
-              {filteredClasses.length === 0 ? (
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 text-center text-xs text-[#76777d]">
-                  Tidak ada kelas untuk filter ini.
-                </div>
-              ) : (
-                filteredClasses.map(cls => {
-                  const percent = cls.total_siswa > 0 ? Math.round((cls.siswa_terjangkau / cls.total_siswa) * 100) : 0;
-                  return (
-                    <div
-                      key={cls.kelas}
-                      className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2.5"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-[#191c1e]">{cls.kelas}</span>
-                            {cls.total_siswa === 0 ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#eceef0] text-[#76777d]">
-                                Belum Ada Siswa
-                              </span>
-                            ) : cls.status === 'tuntas' ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#89f5e7]/40 text-[#0c9488]">
-                                Tuntas 100%
-                              </span>
-                            ) : cls.status === 'berjalan' ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#dbe1ff] text-[#003ea8]">
-                                Berjalan
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ffdad6] text-[#ba1a1a]">
-                                Perlu Perhatian
-                              </span>
-                            )}
+            {monitorTab === 'guru_wali' ? (
+              <div className="space-y-2.5">
+                {guruSummaries.length === 0 ? (
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 text-center text-xs text-[#76777d]">
+                    Belum ada guru wali terdaftar.
+                  </div>
+                ) : (
+                  guruSummaries.map(gw => {
+                    const percent = gw.total_siswa > 0 ? Math.round((gw.siswa_terjangkau / gw.total_siswa) * 100) : 0;
+                    return (
+                      <div
+                        key={gw.guru_wali_id}
+                        className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-[#191c1e]">{gw.guru_wali_nama}</span>
+                              {gw.total_siswa === 0 ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#eceef0] text-[#76777d]">
+                                  Belum Ada Siswa
+                                </span>
+                              ) : gw.status === 'tuntas' ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#89f5e7]/40 text-[#0c9488]">
+                                  Tuntas 100%
+                                </span>
+                              ) : gw.status === 'berjalan' ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#dbe1ff] text-[#003ea8]">
+                                  Berjalan
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ffdad6] text-[#ba1a1a]">
+                                  Perlu Perhatian
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              <span className="text-[11px] text-[#45464d]">{gw.email}</span>
+                              {gw.daftar_kelas.length > 0 && (
+                                <>
+                                  <span className="text-[10px] text-[#c6c6cd]">•</span>
+                                  <span className="text-[10px] text-[#76777d]">Kelas Binaan:</span>
+                                  {gw.daftar_kelas.map(k => (
+                                    <span key={k} className="px-1.5 py-0.2 rounded bg-[#eceef0] text-[#191c1e] font-semibold text-[10px]">
+                                      {k}
+                                    </span>
+                                  ))}
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-xs text-[#45464d] mt-0.5">
-                            Guru Wali: <strong>{cls.guru_wali_nama}</strong>
-                          </p>
+
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-xs font-bold text-[#191c1e]">{gw.total_sesi} Sesi</span>
+                            <p className="text-[10px] text-[#45464d]">{gw.siswa_terjangkau}/{gw.total_siswa} Siswa</p>
+                          </div>
                         </div>
 
-                        <div className="text-right">
-                          <span className="text-xs font-bold text-[#191c1e]">{cls.total_sesi} Sesi</span>
-                          <p className="text-[10px] text-[#45464d]">{cls.siswa_terjangkau}/{cls.total_siswa} Siswa</p>
+                        {/* Progress Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-[#45464d]">
+                            <span>Cakupan Siswa Binaan:</span>
+                            <span className="font-bold text-[#191c1e]">{percent}%</span>
+                          </div>
+                          <div className="w-full bg-[#eceef0] rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                percent === 100
+                                  ? 'bg-[#0c9488]'
+                                  : percent > 75
+                                  ? 'bg-[#0051d5]'
+                                  : 'bg-[#ba1a1a]'
+                              }`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredClasses.length === 0 ? (
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 text-center text-xs text-[#76777d]">
+                    Tidak ada kelas untuk filter ini.
+                  </div>
+                ) : (
+                  filteredClasses.map(cls => {
+                    const percent = cls.total_siswa > 0 ? Math.round((cls.siswa_terjangkau / cls.total_siswa) * 100) : 0;
+                    return (
+                      <div
+                        key={cls.kelas}
+                        className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-[#191c1e]">Kelas {cls.kelas}</span>
+                              {cls.total_siswa === 0 ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#eceef0] text-[#76777d]">
+                                  Belum Ada Siswa
+                                </span>
+                              ) : cls.status === 'tuntas' ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#89f5e7]/40 text-[#0c9488]">
+                                  Tuntas 100%
+                                </span>
+                              ) : cls.status === 'berjalan' ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#dbe1ff] text-[#003ea8]">
+                                  Berjalan
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#ffdad6] text-[#ba1a1a]">
+                                  Perlu Perhatian
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-[#45464d] mt-0.5">
+                              Total siswa terdaftar: <strong>{cls.total_siswa} Siswa</strong>
+                            </p>
+                          </div>
 
-                      {/* Progress Bar */}
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[11px] text-[#45464d]">
-                          <span>Cakupan Siswa:</span>
-                          <span className="font-bold text-[#191c1e]">{percent}%</span>
+                          <div className="text-right">
+                            <span className="text-xs font-bold text-[#191c1e]">{cls.total_sesi} Sesi</span>
+                            <p className="text-[10px] text-[#45464d]">{cls.siswa_terjangkau}/{cls.total_siswa} Siswa</p>
+                          </div>
                         </div>
-                        <div className="w-full bg-[#eceef0] rounded-full h-2 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              percent === 100
-                                ? 'bg-[#0c9488]'
-                                : percent > 75
-                                ? 'bg-[#0051d5]'
-                                : 'bg-[#ba1a1a]'
-                            }`}
-                            style={{ width: `${percent}%` }}
-                          />
+
+                        {/* Progress Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-[#45464d]">
+                            <span>Cakupan Siswa di Rombel:</span>
+                            <span className="font-bold text-[#191c1e]">{percent}%</span>
+                          </div>
+                          <div className="w-full bg-[#eceef0] rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                percent === 100
+                                  ? 'bg-[#0c9488]'
+                                  : percent > 75
+                                  ? 'bg-[#0051d5]'
+                                  : 'bg-[#ba1a1a]'
+                              }`}
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
 
           {/* Atensi Khusus Section */}

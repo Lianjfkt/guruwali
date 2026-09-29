@@ -233,12 +233,34 @@ export default function AdminSiswaPage() {
             >
               Kelas 9
             </button>
+            <div className="w-[1px] h-6 bg-slate-200 self-center mx-1 flex-shrink-0" />
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${
+                statusFilter === 'all' ? 'bg-[#191c1e] text-white' : 'bg-[#eceef0] text-[#45464d]'
+              }`}
+            >
+              Semua Status
+            </button>
+            <button
+              onClick={() => setStatusFilter('perlu_perhatian')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${
+                statusFilter === 'perlu_perhatian' ? 'bg-[#ba1a1a] text-white' : 'bg-[#eceef0] text-[#ba1a1a]'
+              }`}
+            >
+              Perlu Perhatian
+            </button>
           </div>
         </div>
 
         {/* Student Cards List */}
         <div className="space-y-3">
-          {filtered.length === 0 ? (
+          {isDbLoading ? (
+            <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+              <div className="w-8 h-8 border-3 border-[#0051d5] border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-[#76777d] mt-2 font-medium">Memuat data siswa...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-3">
               <span className="material-symbols-outlined text-4xl text-[#76777d]">person_search</span>
               <div>
@@ -404,7 +426,7 @@ export default function AdminSiswaPage() {
                   >
                     {guruWaliList.map(g => (
                       <option key={g.id} value={g.id}>
-                        {g.nama} ({g.kelas || 'Guru Wali'})
+                        {g.nama}
                       </option>
                     ))}
                   </select>
@@ -420,9 +442,10 @@ export default function AdminSiswaPage() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 h-10 rounded-xl bg-[#0051d5] text-xs font-semibold text-white hover:bg-[#003ea8] shadow-sm"
+                    disabled={isSubmitting}
+                    className="flex-1 h-10 rounded-xl bg-[#0051d5] text-xs font-semibold text-white hover:bg-[#003ea8] shadow-sm disabled:opacity-50"
                   >
-                    Simpan Siswa
+                    {isSubmitting ? 'Menyimpan...' : 'Simpan Siswa'}
                   </button>
                 </div>
               </form>

@@ -189,7 +189,12 @@ export default function SiswaPage() {
 
         {/* Student Cards List */}
         <div className="space-y-3">
-          {filteredStudents.length === 0 ? (
+          {isDbLoading ? (
+            <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+              <div className="w-8 h-8 border-3 border-[#0051d5] border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-[#76777d] mt-2 font-medium">Memuat data siswa...</p>
+            </div>
+          ) : filteredStudents.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm flex flex-col items-center justify-center gap-3">
               <span className="material-symbols-outlined text-4xl text-[#76777d]">person_search</span>
               <div>

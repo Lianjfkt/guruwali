@@ -758,11 +758,14 @@ function CatatSesiContent() {
           <div className="flex flex-col gap-2 pt-2">
             <button
               type="submit"
-              className="w-full py-3.5 px-6 rounded-xl bg-[#191c1e] hover:bg-[#131b2e] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.99]"
+              disabled={isSubmitting}
+              className="w-full py-3.5 px-6 rounded-xl bg-[#191c1e] hover:bg-[#131b2e] text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-[0.99] disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>save</span>
               <span>
-                {selectedStudentIds.length > 1
+                {isSubmitting
+                  ? 'Menyimpan Catatan...'
+                  : selectedStudentIds.length > 1
                   ? `Simpan Sesi untuk ${selectedStudentIds.length} Siswa`
                   : 'Simpan Catatan Sesi'}
               </span>

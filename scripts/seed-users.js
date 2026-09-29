@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // scripts/seed-users.js
 // Script untuk mengisi akun pengguna awal ke Supabase Auth & public.users
 // Menggunakan SUPABASE_SERVICE_ROLE_KEY dari .env.local

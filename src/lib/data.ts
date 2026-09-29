@@ -277,8 +277,7 @@ export function computeGuruWaliSummaries(
  */
 export function computeClassSummaries(
   students: Student[],
-  sessions: MentoringSession[],
-  _teachers?: User[]
+  sessions: MentoringSession[]
 ): ClassSummary[] {
   const standardClasses = [
     '7.1', '7.2', '7.3', '7.4',

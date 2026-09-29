@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { formatDate, formatDateShort, getInitials } from '@/lib/data';
+import { formatDate, getInitials } from '@/lib/data';
 import { getAllStudents, getSessionsByStudent, getAllUsers } from '@/lib/db';
 import { MentoringAreaId, Student, MentoringSession, User } from '@/lib/types';
 
@@ -27,6 +27,7 @@ export default function PortalOrangTuaPage() {
 
   useEffect(() => {
     if (!user) return;
+    let ignore = false;
     const load = async () => {
       try {
         setIsDbLoading(true);
@@ -34,21 +35,29 @@ export default function PortalOrangTuaPage() {
           getAllStudents(),
           getAllUsers(),
         ]);
+        if (ignore) return;
         setStudents(studs);
         setUsers(allU);
 
         const myChild = studs.find(s => s.orang_tua_id === user.id) || studs[0];
         if (myChild) {
           const sess = await getSessionsByStudent(myChild.id);
-          setSessions(sess);
+          if (!ignore) {
+            setSessions(sess);
+          }
         }
       } catch {
         // ignore load error
       } finally {
-        setIsDbLoading(false);
+        if (!ignore) {
+          setIsDbLoading(false);
+        }
       }
     };
     load();
+    return () => {
+      ignore = true;
+    };
   }, [user]);
 
   // Siswa binaan untuk orang tua
@@ -388,7 +397,7 @@ export default function PortalOrangTuaPage() {
           <div className="hidden print:flex justify-between items-end mt-12 pt-6 text-xs text-black">
             <div className="text-center">
               <p>Mengetahui,</p>
-              <p className="font-semibold">Guru Wali Kelas {child.kelas}</p>
+              <p className="font-semibold">Guru Wali Pembina</p>
               <div className="h-16" />
               <p className="font-bold underline">{guruWali?.nama || 'Mr. Ahmad Fauzi, S.Pd.'}</p>
               <p className="text-[10px]">NIP. 19850914 201001 1 012</p>

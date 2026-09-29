@@ -104,6 +104,15 @@ export default function DashboardPage() {
           </Link>
         </section>
 
+        {dbError && (
+          <div className="bg-[#ffdad6] text-[#ba1a1a] px-4 py-3 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-sm">
+            <span>{dbError}</span>
+            <button onClick={() => setDbError(null)} className="text-[#ba1a1a]">
+              <span className="material-symbols-outlined text-[16px]">close</span>
+            </button>
+          </div>
+        )}
+
         {/* Onboarding jika belum ada siswa binaan */}
         {myStudents.length === 0 && (
           <section className="bg-gradient-to-r from-[#dbe1ff]/60 to-[#89f5e7]/20 border border-[#0051d5]/20 rounded-2xl p-4 flex flex-col gap-2">
