@@ -94,7 +94,7 @@ function UserProfileModal({
         <div className="bg-[#f7f9fb] rounded-xl p-3 flex items-center justify-between text-xs">
           <span className="text-[#45464d]">Peran Aktif:</span>
           <span className="px-2.5 py-0.5 rounded-full font-bold bg-[#dbe1ff] text-[#003ea8] capitalize">
-            {currentUser.kelas ? `Wali ${currentUser.kelas}` : currentUser.role || 'Pengguna'}
+            {currentUser.role === 'guru_wali' ? 'Guru Wali' : currentUser.role || 'Pengguna'}
           </span>
         </div>
 
@@ -241,7 +241,7 @@ export function GuruWaliLayout({
             >
               <div className="hidden sm:flex flex-col text-right">
                 <span className="text-xs font-semibold text-[#191c1e] truncate max-w-[120px]">{user.nama}</span>
-                <span className="text-[10px] text-[#0051d5] font-medium">{user.kelas || 'Guru Wali'}</span>
+                <span className="text-[10px] text-[#0051d5] font-medium">Guru Wali</span>
               </div>
               <div className="w-8 h-8 rounded-full bg-[#131b2e] flex items-center justify-center flex-shrink-0 text-white font-bold text-xs">
                 <span className="material-symbols-outlined text-[18px]">person</span>

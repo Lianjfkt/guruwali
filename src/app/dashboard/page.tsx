@@ -46,7 +46,7 @@ export default function DashboardPage() {
     return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-[#0051d5] border-t-transparent rounded-full animate-spin" /></div>;
   }
 
-  const myStudents = students.filter(s => s.guru_wali_id === user.id || s.kelas === user.kelas);
+  const myStudents = students.filter(s => s.guru_wali_id === user.id);
   const mySessions = sessions.filter(s => s.dicatat_oleh === user.id);
   const dist = getAreaDistribution(mySessions);
   const totalSesi = mySessions.length;
@@ -79,7 +79,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-3">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#dbe1ff] text-[#003ea8] text-[11px] font-semibold">
               <span className="material-symbols-outlined text-[12px]">school</span>
-              {user.kelas} • TA 2026/2027
+              Guru Wali • {totalSiswa} Siswa Binaan
             </div>
             <button onClick={logout} className="text-[10px] text-[#76777d] flex items-center gap-1 hover:text-red-500 transition-colors">
               <span className="material-symbols-outlined text-[14px]">logout</span>
@@ -112,7 +112,7 @@ export default function DashboardPage() {
               <h3 className="text-xs font-bold uppercase tracking-wider">Langkah Awal Perwalian</h3>
             </div>
             <p className="text-xs text-[#191c1e]">
-              Belum ada siswa binaan yang terdaftar untuk kelas <strong>{user.kelas}</strong>. Daftarkan siswa binaan Anda terlebih dahulu untuk memulai pendampingan.
+              Belum ada siswa binaan yang terdaftar untuk Anda. Daftarkan siswa binaan Anda terlebih dahulu untuk memulai pendampingan.
             </p>
             <div className="pt-1">
               <Link
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex flex-col min-w-0">
                         <span className="text-sm font-bold text-[#191c1e] truncate">{siswa.nama}</span>
-                        <span className="text-[11px] text-[#45464d]">NISGM: {siswa.nisn} • {siswa.kelas}</span>
+                        <span className="text-[11px] text-[#45464d]">NISGM: {siswa.nisn} • Kelas {siswa.kelas}</span>
                       </div>
                     </div>
                     <span className="px-2 py-0.5 rounded-full bg-[#ffdad6] text-[#93000a] text-[10px] font-semibold flex-shrink-0">
