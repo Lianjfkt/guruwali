@@ -105,10 +105,11 @@ export default function AdminDashboardPage() {
           'Nama Siswa': siswa?.nama || '-',
           'Kelas': siswa?.kelas || '-',
           'NISGM': siswa?.nisn || '-',
+          'Metode & Tempat': s.metode || '-',
           'Area Pendampingan': s.area_id.toUpperCase(),
           'Dicatat Oleh': s.dicatat_oleh_nama,
           'Temuan & Observasi': s.temuan,
-          'Kegiatan': s.kegiatan.join('; ') + (s.kegiatan_tambahan ? ` (${s.kegiatan_tambahan})` : ''),
+          'Kegiatan / Topik': s.kegiatan.join('; ') + (s.kegiatan_tambahan && !s.kegiatan.includes(s.kegiatan_tambahan) ? ` (${s.kegiatan_tambahan})` : ''),
           'Rencana Tindak Lanjut': s.tindak_lanjut.join('; '),
           'Target Evaluasi': s.target_evaluasi || '-',
         };

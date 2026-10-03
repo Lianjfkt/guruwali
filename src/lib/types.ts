@@ -53,6 +53,7 @@ export interface MentoringSession {
   temuan: string;
   tindak_lanjut: string[];
   target_evaluasi?: string;
+  metode?: string;
   dibuat_pada: string; // ISO timestamp
 }
 

@@ -157,7 +157,21 @@ export async function addSession(
     .select()
     .single();
 
-  if (error) throw new Error(`addSession: ${error.message}`);
+  if (error) {
+    // Fallback toleransi jika kolom 'metode' belum dibuat di skema Supabase
+    if (error.message && error.message.includes('metode')) {
+      const { metode, ...fallbackPayload } = payload as Record<string, unknown>;
+      const { data: retryData, error: retryError } = await supabase
+        .from('mentoring_sessions')
+        .insert([fallbackPayload])
+        .select()
+        .single();
+      if (!retryError && retryData) {
+        return { ...retryData, metode } as MentoringSession;
+      }
+    }
+    throw new Error(`addSession: ${error.message}`);
+  }
   return data as MentoringSession;
 }
 

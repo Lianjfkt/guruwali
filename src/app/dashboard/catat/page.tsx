@@ -36,11 +36,15 @@ function CatatSesiContent() {
   const [tanggal, setTanggal] = useState<string>(new Date().toISOString().split('T')[0]);
   const [waktu, setWaktu] = useState<string>('10:15');
   const [metode, setMetode] = useState<string>('Tatap Muka di Ruang Guru Wali / Pojok Konseling');
+  const [isManualMetode, setIsManualMetode] = useState<boolean>(false);
+  const [manualMetode, setManualMetode] = useState<string>('');
   const [selectedArea, setSelectedArea] = useState<MentoringAreaId>('akademik');
   const [selectedKegiatan, setSelectedKegiatan] = useState<string[]>(() => {
     const area = getMentoringArea('akademik');
     return area && area.daftar_kegiatan.length > 0 ? [area.daftar_kegiatan[0]] : [];
   });
+  const [isCustomKegiatan, setIsCustomKegiatan] = useState<boolean>(false);
+  const [customKegiatan, setCustomKegiatan] = useState<string>('');
   const [kegiatanTambahan, setKegiatanTambahan] = useState<string>('');
   const [temuan, setTemuan] = useState<string>('');
   const [selectedTindakLanjut, setSelectedTindakLanjut] = useState<string[]>(() => {
@@ -143,8 +147,23 @@ function CatatSesiContent() {
       setFormError('Mohon isi catatan temuan & observasi minimal 10 karakter secara objektif.');
       return;
     }
-    if (selectedKegiatan.length === 0 && !kegiatanTambahan.trim()) {
-      setFormError('Mohon pilih minimal satu bentuk kegiatan pendampingan.');
+    const effectiveMetode = isManualMetode
+      ? (manualMetode.trim() || 'Tatap Muka di Ruang Guru Wali / Pojok Konseling')
+      : (metode || 'Tatap Muka di Ruang Guru Wali / Pojok Konseling');
+
+    const trimmedCustom = customKegiatan.trim();
+    const trimmedTambahan = kegiatanTambahan.trim();
+
+    const allKegiatan = [...selectedKegiatan];
+    if (trimmedCustom && !allKegiatan.includes(trimmedCustom)) {
+      allKegiatan.push(trimmedCustom);
+    }
+    if (allKegiatan.length === 0 && trimmedTambahan) {
+      allKegiatan.push(trimmedTambahan);
+    }
+
+    if (allKegiatan.length === 0) {
+      setFormError('Mohon pilih minimal satu bentuk kegiatan atau ketik topik pendampingan manual.');
       return;
     }
 
@@ -157,9 +176,10 @@ function CatatSesiContent() {
             dicatat_oleh: user.id,
             dicatat_oleh_nama: user.nama,
             tanggal,
+            metode: effectiveMetode,
             area_id: selectedArea,
-            kegiatan: selectedKegiatan.length > 0 ? selectedKegiatan : ['Pendampingan berkala'],
-            kegiatan_tambahan: kegiatanTambahan || undefined,
+            kegiatan: allKegiatan,
+            kegiatan_tambahan: trimmedTambahan || trimmedCustom || undefined,
             temuan: temuan.trim(),
             tindak_lanjut: selectedTindakLanjut,
             target_evaluasi: targetEvaluasi || undefined,
@@ -457,32 +477,88 @@ function CatatSesiContent() {
             </div>
 
             {/* Metode & Tempat */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-[#45464d] flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px] text-[#0051d5]">meeting_room</span>
-                Metode &amp; Tempat
-              </label>
-              <select
-                value={metode}
-                onChange={e => setMetode(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-[#f7f9fb] text-xs font-medium text-[#191c1e] border border-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
-              >
-                <option value="Tatap Muka di Ruang Guru Wali / Pojok Konseling">
-                  Tatap Muka di Ruang Guru Wali / Pojok Konseling
-                </option>
-                <option value="Tatap Muka di Ruang Kelas (Setelah KBM)">
-                  Tatap Muka di Ruang Kelas (Setelah KBM)
-                </option>
-                <option value="Pendampingan di Asrama / Boarding">
-                  Pendampingan di Asrama / Boarding
-                </option>
-                <option value="Daring / Telepon dengan Wali Siswa">
-                  Daring / Telepon dengan Wali Siswa
-                </option>
-                <option value="Sesi Kelompok (Group Mentoring)">
-                  Sesi Kelompok (Group Mentoring)
-                </option>
-              </select>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-[#45464d] flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px] text-[#0051d5]">meeting_room</span>
+                  Metode &amp; Tempat
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isManualMetode;
+                    setIsManualMetode(next);
+                    if (next && !manualMetode) {
+                      setManualMetode('');
+                    }
+                  }}
+                  className="text-[11px] font-semibold text-[#0051d5] hover:underline flex items-center gap-0.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[13px]">
+                    {isManualMetode ? 'checklist' : 'edit_note'}
+                  </span>
+                  {isManualMetode ? 'Pilih Template' : 'Tulis Manual'}
+                </button>
+              </div>
+
+              {!isManualMetode ? (
+                <div className="space-y-1">
+                  <select
+                    value={metode}
+                    onChange={e => {
+                      if (e.target.value === '__manual__') {
+                        setIsManualMetode(true);
+                      } else {
+                        setMetode(e.target.value);
+                      }
+                    }}
+                    className="w-full h-10 px-3 rounded-xl bg-[#f7f9fb] text-xs font-medium text-[#191c1e] border border-slate-100 focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30 cursor-pointer"
+                  >
+                    <option value="Tatap Muka di Ruang Guru Wali / Pojok Konseling">
+                      Tatap Muka di Ruang Guru Wali / Pojok Konseling
+                    </option>
+                    <option value="Tatap Muka di Ruang Kelas (Setelah KBM)">
+                      Tatap Muka di Ruang Kelas (Setelah KBM)
+                    </option>
+                    <option value="Pendampingan di Asrama / Boarding">
+                      Pendampingan di Asrama / Boarding
+                    </option>
+                    <option value="Daring / Telepon dengan Wali Siswa">
+                      Daring / Telepon dengan Wali Siswa
+                    </option>
+                    <option value="Sesi Kelompok (Group Mentoring)">
+                      Sesi Kelompok (Group Mentoring)
+                    </option>
+                    <option value="__manual__">
+                      ✏️ Tulis / Input Metode &amp; Tempat Manual...
+                    </option>
+                  </select>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="bg-[#f7f9fb] rounded-xl px-3 py-2 flex items-center gap-2 border border-[#0051d5]/40 focus-within:ring-2 focus-within:ring-[#0051d5]/30">
+                    <span className="material-symbols-outlined text-[16px] text-[#0051d5]">edit</span>
+                    <input
+                      type="text"
+                      value={manualMetode}
+                      onChange={e => setManualMetode(e.target.value)}
+                      placeholder="Contoh: Kunjungan Rumah (Home Visit), Perpustakaan Lt. 2, Gazebo..."
+                      className="w-full bg-transparent text-xs text-[#191c1e] placeholder-[#76777d] focus:outline-none"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-[#76777d] px-1">
+                    <span>Metode &amp; tempat manual akan disimpan khusus pada sesi ini.</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsManualMetode(false)}
+                      className="text-[#0051d5] font-semibold hover:underline"
+                    >
+                      Batal (Gunakan Template)
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Group session info banner */}
@@ -623,6 +699,62 @@ function CatatSesiContent() {
                   </label>
                 );
               })}
+
+              {/* Opsi Bentuk Kegiatan / Topik Tambahan Manual */}
+              <div
+                className={`p-2.5 rounded-xl transition-all border ${
+                  isCustomKegiatan || customKegiatan.trim()
+                    ? 'bg-[#dbe1ff]/30 border-[#0051d5]/40'
+                    : 'bg-[#f7f9fb] border-slate-100 hover:bg-[#eceef0]'
+                }`}
+              >
+                <div
+                  className="flex items-center gap-2.5 cursor-pointer"
+                  onClick={() => {
+                    const next = !isCustomKegiatan;
+                    setIsCustomKegiatan(next);
+                    if (!next) setCustomKegiatan('');
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isCustomKegiatan || !!customKegiatan.trim()}
+                    onChange={e => {
+                      setIsCustomKegiatan(e.target.checked);
+                      if (!e.target.checked) setCustomKegiatan('');
+                    }}
+                    className="mt-0.5 w-4 h-4 rounded text-[#0051d5] accent-[#0051d5] cursor-pointer"
+                  />
+                  <div className="flex-1 flex items-center justify-between">
+                    <span className="text-xs text-[#191c1e] font-semibold flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[15px] text-[#0051d5]">add_circle</span>
+                      Topik / Bentuk Kegiatan Lainnya (Input Manual)
+                    </span>
+                    <span className="text-[10px] text-[#0051d5] font-semibold bg-white px-2 py-0.5 rounded-md border border-[#0051d5]/20">
+                      Ketik Sendiri
+                    </span>
+                  </div>
+                </div>
+
+                {(isCustomKegiatan || customKegiatan.trim()) && (
+                  <div className="mt-2.5 pt-2 border-t border-slate-200/60 pl-6.5">
+                    <div className="bg-white rounded-xl px-3 py-2 flex items-center gap-2 border border-[#0051d5]/30 focus-within:border-[#0051d5] focus-within:ring-2 focus-within:ring-[#0051d5]/20">
+                      <span className="material-symbols-outlined text-[16px] text-[#0051d5]">edit</span>
+                      <input
+                        type="text"
+                        value={customKegiatan}
+                        onChange={e => {
+                          setCustomKegiatan(e.target.value);
+                          if (!isCustomKegiatan) setIsCustomKegiatan(true);
+                        }}
+                        placeholder="Ketik topik / kegiatan khusus (misal: Pembahasan kendala OSN, konseling teman sebaya...)"
+                        className="w-full bg-transparent text-xs text-[#191c1e] placeholder-[#76777d] focus:outline-none"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1 pt-1">

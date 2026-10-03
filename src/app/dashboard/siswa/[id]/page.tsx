@@ -420,6 +420,12 @@ export default function StudentDetailPage({
                               <span className="material-symbols-outlined text-[13px]">schedule</span>
                               {formatDate(session.tanggal)}
                             </span>
+                            {session.metode && (
+                              <span className="text-xs text-[#45464d] flex items-center gap-1 bg-[#f2f4f6] px-2 py-0.5 rounded-md">
+                                <span className="material-symbols-outlined text-[13px] text-[#0051d5]">meeting_room</span>
+                                {session.metode}
+                              </span>
+                            )}
                           </div>
                           <h4 className="text-sm font-bold text-[#191c1e] leading-snug mt-1">
                             {session.kegiatan_tambahan || session.kegiatan[0]}

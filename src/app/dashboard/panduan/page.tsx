@@ -254,6 +254,12 @@ export default function PanduanPage() {
                       </p>
                     </div>
                   ))}
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#dbe1ff]/30 border border-[#0051d5]/20">
+                    <span className="material-symbols-outlined text-[16px] text-[#0051d5] flex-shrink-0 mt-0.5">info</span>
+                    <p className="text-[11px] text-[#003ea8] leading-relaxed">
+                      <strong>Fleksibilitas Topik &amp; Metode:</strong> Selain daftar terstandar di atas, Guru Wali dapat menambahkan topik kegiatan manual maupun metode &amp; tempat khusus (seperti <em>Home Visit</em>, sudut baca perpustakaan, konseling khusus) langsung saat mengisi formulir jurnal.
+                    </p>
+                  </div>
                 </div>
               </div>
 
