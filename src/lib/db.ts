@@ -37,6 +37,20 @@ export async function getAllStudents(): Promise<Student[]> {
 }
 
 /**
+ * Ambil data 1 siswa berdasarkan ID
+ */
+export async function getStudentById(id: string): Promise<Student | null> {
+  const { data, error } = await supabase
+    .from('students')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return null;
+  return data as Student;
+}
+
+/**
  * Tambah siswa baru — id di-generate otomatis oleh database
  */
 export async function addStudent(

@@ -224,7 +224,7 @@ export default function PortalOrangTuaPage() {
                 <span className="material-symbols-outlined text-[#0051d5] text-[18px]">school</span>
                 <div>
                   <p className="text-[10px] text-[#45464d]">Guru Wali Pengampu:</p>
-                  <p className="font-bold text-[#191c1e]">{guruWali?.nama || 'Mr. Ahmad Fauzi, S.Pd.'}</p>
+                  <p className="font-bold text-[#191c1e]">{guruWali?.nama || 'Guru Wali Pembina'}</p>
                 </div>
               </div>
               <button
@@ -407,8 +407,8 @@ export default function PortalOrangTuaPage() {
               <p>Mengetahui,</p>
               <p className="font-semibold">Guru Wali Pembina</p>
               <div className="h-16" />
-              <p className="font-bold underline">{guruWali?.nama || 'Mr. Ahmad Fauzi, S.Pd.'}</p>
-              <p className="text-[10px]">NIP. 19850914 201001 1 012</p>
+              <p className="font-bold underline">{guruWali?.nama || 'Guru Wali Pembina'}</p>
+              <p className="text-[10px]">Guru Wali Kelas {child.kelas}</p>
             </div>
             <div className="text-center">
               <p>Bandar Lampung, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>

@@ -4,9 +4,9 @@ import { useState, useMemo, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { USERS, formatDate, formatDateShort, getInitials } from '@/lib/data';
-import { getStudentsByGuruWali, getAllStudents, getSessionsByStudent } from '@/lib/db';
-import { MentoringAreaId, MentoringSession, Student } from '@/lib/types';
+import { formatDate, formatDateShort, getInitials } from '@/lib/data';
+import { getStudentsByGuruWali, getAllStudents, getStudentById, getSessionsByStudent, getAllUsers, updateStudent } from '@/lib/db';
+import { MentoringAreaId, MentoringSession, Student, User } from '@/lib/types';
 
 export default function StudentDetailPage({
   params,
@@ -20,22 +20,31 @@ export default function StudentDetailPage({
   const router = useRouter();
 
   const [students, setStudents] = useState<Student[]>([]);
+  const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
   const [studentSessions, setStudentSessions] = useState<MentoringSession[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isDbLoading, setIsDbLoading] = useState(true);
   const [activeAreaFilter, setActiveAreaFilter] = useState<'semua' | MentoringAreaId>('semua');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showLinkParentModal, setShowLinkParentModal] = useState<boolean>(false);
+  const [selectedParentId, setSelectedParentId] = useState<string>('');
+  const [isUpdatingParent, setIsUpdatingParent] = useState<boolean>(false);
 
   useEffect(() => {
     if (!user) return;
     const loadData = async () => {
       try {
         setIsDbLoading(true);
-        const [studs, sess] = await Promise.all([
+        const [studs, targetStudent, sess, usersList] = await Promise.all([
           user.role === 'guru_wali' ? getStudentsByGuruWali(user.id) : getAllStudents(),
+          getStudentById(studentId),
           getSessionsByStudent(studentId),
+          getAllUsers().catch(() => []),
         ]);
         setStudents(studs);
+        setCurrentStudent(targetStudent);
         setStudentSessions(sess);
+        setAllUsers(usersList);
       } catch {
         // ignore error
       } finally {
@@ -51,18 +60,44 @@ export default function StudentDetailPage({
   };
 
   const student = useMemo(() => {
-    return students.find(s => s.id === studentId);
-  }, [students, studentId]);
+    return currentStudent || students.find(s => s.id === studentId) || null;
+  }, [currentStudent, students, studentId]);
 
   const guruWali = useMemo(() => {
     if (!student) return null;
-    return USERS.find(u => u.id === student.guru_wali_id);
-  }, [student]);
+    const found = allUsers.find(u => u.id === student.guru_wali_id);
+    if (found) return found;
+    if (user && user.id === student.guru_wali_id) return user;
+    return null;
+  }, [student, allUsers, user]);
 
   const parent = useMemo(() => {
-    if (!student) return null;
-    return USERS.find(u => u.id === student.orang_tua_id);
-  }, [student]);
+    if (!student || !student.orang_tua_id) return null;
+    return allUsers.find(u => u.id === student.orang_tua_id) || null;
+  }, [student, allUsers]);
+
+  const parentUsers = useMemo(() => {
+    return allUsers.filter(u => u.role === 'orang_tua');
+  }, [allUsers]);
+
+  const handleSaveParentLink = async () => {
+    if (!student) return;
+    try {
+      setIsUpdatingParent(true);
+      const updated = await updateStudent(student.id, {
+        orang_tua_id: selectedParentId || undefined,
+      });
+      setCurrentStudent(updated);
+      setStudents(prev => prev.map(s => s.id === student.id ? { ...s, orang_tua_id: updated.orang_tua_id } : s));
+      setShowLinkParentModal(false);
+      showToast(selectedParentId ? 'Akun orang tua berhasil ditautkan!' : 'Tautan akun orang tua berhasil diperbarui.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menautkan akun orang tua.';
+      showToast(msg);
+    } finally {
+      setIsUpdatingParent(false);
+    }
+  };
 
   const filteredSessions = useMemo(() => {
     if (activeAreaFilter === 'semua') return studentSessions;
@@ -244,20 +279,40 @@ export default function StudentDetailPage({
             </div>
 
             {/* Metadata Pengampu & Orang Tua */}
-            <div className="bg-[#f7f9fb] rounded-xl p-3 space-y-2 text-xs">
+            <div className="bg-[#f7f9fb] rounded-xl p-3 space-y-2.5 text-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-[#45464d]">
                   <span className="material-symbols-outlined text-[16px] text-[#0051d5]">school</span>
                   <span>Guru Wali:</span>
                 </div>
-                <span className="font-semibold text-[#191c1e]">{guruWali?.nama || 'Mr. Ahmad Fauzi, S.Pd.'}</span>
+                <span className="font-semibold text-[#191c1e]">
+                  {guruWali?.nama || (user && user.id === student.guru_wali_id ? user.nama : 'Belum ditentukan')}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-[#45464d]">
                   <span className="material-symbols-outlined text-[16px] text-[#76777d]">family_restroom</span>
                   <span>Orang Tua:</span>
                 </div>
-                <span className="font-semibold text-[#191c1e]">{parent?.nama || 'Bpk. Bambang Irawan (Ayah)'}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-semibold ${parent?.nama ? 'text-[#191c1e]' : 'text-[#76777d] italic'}`}>
+                    {parent?.nama ? parent.nama : 'Belum ditautkan'}
+                  </span>
+                  {(user?.role === 'guru_wali' || user?.role === 'admin') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedParentId(student.orang_tua_id || '');
+                        setShowLinkParentModal(true);
+                      }}
+                      className="px-2 py-0.5 rounded-md bg-[#dbe1ff]/70 hover:bg-[#dbe1ff] text-[#003ea8] text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                      title="Kelola tautan akun orang tua"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">link</span>
+                      <span>{parent ? 'Ubah' : 'Tautkan'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -514,11 +569,81 @@ export default function StudentDetailPage({
               <p>Bandar Lampung, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
               <p className="font-semibold">Guru Wali Pembina</p>
               <div className="h-16" />
-              <p className="font-bold underline">{guruWali?.nama || 'Mr. Ahmad Fauzi, S.Pd.'}</p>
-              <p className="text-[10px]">NIP. 19850914 201001 1 012</p>
+              <p className="font-bold underline">{guruWali?.nama || user?.nama || 'Guru Wali Pembina'}</p>
+              <p className="text-[10px]">Guru Wali Kelas {student.kelas}</p>
             </div>
           </div>
         </main>
+
+        {/* Modal Tautkan Akun Orang Tua */}
+        {showLinkParentModal && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-5 space-y-4 border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-[#191c1e]">Tautkan Akun Orang Tua</h3>
+                  <p className="text-xs text-[#45464d] mt-0.5">Siswa: <strong>{student.nama}</strong> ({student.kelas})</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLinkParentModal(false)}
+                  className="w-7 h-7 rounded-full bg-[#f2f4f6] text-[#45464d] flex items-center justify-center hover:bg-[#e6e8ea]"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-[#45464d] block">
+                  Pilih Akun Orang Tua Terdaftar:
+                </label>
+                {parentUsers.length > 0 ? (
+                  <select
+                    value={selectedParentId}
+                    onChange={e => setSelectedParentId(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-[#f7f9fb] text-xs font-medium text-[#191c1e] border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0051d5]/30"
+                  >
+                    <option value="">-- Belum Ditautkan (Kosongkan) --</option>
+                    {parentUsers.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.nama} ({p.email})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-3 bg-[#f7f9fb] rounded-xl border border-slate-200 text-xs text-[#45464d] space-y-1">
+                    <p className="font-semibold text-[#191c1e]">Belum ada akun Orang Tua terdaftar.</p>
+                    <p className="text-[11px] leading-relaxed">
+                      Admin dapat membuat akun Orang Tua terlebih dahulu di menu <strong>Kelola Pengguna</strong> dengan peran &quot;Orang Tua&quot;.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowLinkParentModal(false)}
+                  className="flex-1 py-2 rounded-xl bg-[#f2f4f6] text-xs font-semibold text-[#45464d] hover:bg-[#e6e8ea]"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdatingParent || (parentUsers.length === 0 && !selectedParentId)}
+                  onClick={handleSaveParentLink}
+                  className="flex-1 py-2 rounded-xl bg-[#0051d5] text-xs font-semibold text-white hover:bg-[#003ea8] disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {isUpdatingParent ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    'Simpan'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
