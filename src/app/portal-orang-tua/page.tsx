@@ -184,8 +184,8 @@ export default function PortalOrangTuaPage() {
           <div className="hidden print:block print-header text-center pb-3 mb-4 border-b-2 border-black">
             <h3 className="text-xs font-bold uppercase tracking-wider text-black">Yayasan Pendidikan Global Madani</h3>
             <h1 className="text-base font-black uppercase text-black">SMP Global Madani Bandar Lampung</h1>
-            <p className="text-[10px] text-gray-700">Jl. Prof. Dr. Soemantri Brojonegoro No. 1, Gedong Meneng, Rajabasa, Bandar Lampung</p>
-            <p className="text-[10px] text-gray-700">Telp: (0721) 787888 • Laman: https://smp.globalmadani.sch.id</p>
+            <p className="text-[10px] text-gray-700">Jalan Kavling Raya 14, No.1 Rajabasa Kecamatan Rajabasa, Kota Bandar Lampung, Lampung 32142</p>
+            <p className="text-[10px] text-gray-700">Telp: 0721-8011325 • Laman: https://smp.globalmadani.sch.id</p>
             <div className="mt-2 pt-2 border-t border-black text-xs font-bold uppercase">
               Laporan Hasil Pendampingan Guru Wali Untuk Orang Tua
             </div>
@@ -255,7 +255,7 @@ export default function PortalOrangTuaPage() {
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
               <span className="text-[11px] text-[#45464d]">Total Sesi Bimbingan</span>
               <p className="text-xl font-bold text-[#191c1e] mt-1">{childSessions.length} Sesi</p>
-              <p className="text-[10px] text-[#0c9488] font-semibold mt-0.5">Semester Ganjil 2024/2025</p>
+              <p className="text-[10px] text-[#0c9488] font-semibold mt-0.5">T.A 2026/2027</p>
             </div>
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
               <span className="text-[11px] text-[#45464d]">Evaluasi Terdekat</span>

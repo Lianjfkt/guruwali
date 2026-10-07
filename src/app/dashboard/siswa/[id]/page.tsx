@@ -227,8 +227,8 @@ export default function StudentDetailPage({
           <div className="hidden print:block print-header text-center pb-3 mb-4 border-b-2 border-black">
             <h3 className="text-xs font-bold uppercase tracking-wider text-black">Yayasan Pendidikan Global Madani</h3>
             <h1 className="text-base font-black uppercase text-black">SMP Global Madani Bandar Lampung</h1>
-            <p className="text-[10px] text-gray-700">Jl. Prof. Dr. Soemantri Brojonegoro No. 1, Gedong Meneng, Rajabasa, Bandar Lampung</p>
-            <p className="text-[10px] text-gray-700">Telp: (0721) 787888 • Laman: https://smp.globalmadani.sch.id</p>
+            <p className="text-[10px] text-gray-700">Jalan Kavling Raya 14, No.1 Rajabasa Kecamatan Rajabasa, Kota Bandar Lampung, Lampung 32142</p>
+            <p className="text-[10px] text-gray-700">Telp: 0721-8011325 • Laman: https://smp.globalmadani.sch.id</p>
             <div className="mt-2 pt-2 border-t border-black text-xs font-bold uppercase">
               Lembar Catatan Riwayat Pendampingan &amp; Bimbingan Siswa
             </div>
@@ -562,8 +562,8 @@ export default function StudentDetailPage({
               <p>Mengetahui,</p>
               <p className="font-semibold">Kepala SMP Global Madani</p>
               <div className="h-16" />
-              <p className="font-bold underline">H. Sapto Wibowo, S.Pd., M.Si.</p>
-              <p className="text-[10px]">NIP. 19780512 200501 1 008</p>
+              <p className="font-bold underline">Fathul Anwariyah, M.Pd., Gr.</p>
+              <p className="text-[10px]">NPGM. 311030987 2 014</p>
             </div>
             <div className="text-center">
               <p>Bandar Lampung, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
