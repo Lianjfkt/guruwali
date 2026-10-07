@@ -385,7 +385,7 @@ export default function StudentDetailPage({
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-[#191c1e]">Garis Waktu Pendampingan</h3>
-              <span className="text-[11px] text-[#45464d]">T.A. 2024/2025</span>
+              <span className="text-[11px] text-[#45464d]">T.A 2026/2027</span>
             </div>
 
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
